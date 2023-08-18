@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "py-data-provider"
+version = "0.1.2"
+description = ""
+authors = ["thawro <tomaszhawro.kontakt@gmail.com>"]
+homepage = "https://github.com/thawro/py-data-provider"
+repository = "https://github.com/thawro/py-data-provider"
+readme = "README.md"
+packages = [{ include = "py_data_provider" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pre-commit = "^3.2.2"
+black = "^23.3.0"
+isort = "^5.12.0"
+rich = "^13.3.5"
+colorlog = "^6.7.0"
+mat73 = "^0.60"
+colored = "^1.4.4"
+tqdm = "^4.65.0"
+ipykernel = "^6.25.1"
+ipywidgets = "^8.1.0"
+pillow = "^10.0.0"
+opencv-python = "^4.8.0.76"
+matplotlib = "^3.7.2"
+
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^2.17.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
