@@ -1,59 +1,85 @@
-from py_data_provider.utils.files import download_file, unzip_tar_gz, path_exists
+from py_data_provider.utils.files import download_file, unzip_tar, path_exists, unzip_zip
 from py_data_provider.utils.pylogger import get_pylogger
+from abc import abstractmethod
+from pathlib import Path
 
 log = get_pylogger(__name__)
 
 
-class TarDataProvider:
+class DataProvider:
     def __init__(self, urls: dict[str, str], root: str):
         self.urls = urls
         self.root = root
         self.raw_root = f"{root}/raw"
-        self.tar_filepaths = [f"{root}/{name}.tar.gz" for name in urls]
         if not self.check_if_present():
-            self.download()  # TODO
+            self.zip_filepaths = self.download()  # TODO
             self.unzip()
-            self.set_split_ids()
+            self.split_ids = self._get_split_ids()
             self.arrange_files()
             self.create_labels()
-            self.set_filepaths()
+            self.filepaths = self._get_filepaths()
         else:
             log.info(f"Dataset is already present")
-            self.set_split_ids()
-            self.set_filepaths()
-
-    def check_if_present(self) -> bool:
-        raise NotImplementedError()
+            self.split_ids = self._get_split_ids()
+            self.filepaths = self._get_filepaths()
 
     def download(self):
+        zip_filepaths = []
         for name, url in self.urls.items():
-            tar_filepath = f"{self.root}/{name}.tar.gz"
-            if path_exists(tar_filepath):
-                log.info(f"{tar_filepath} is already present. Download canceled")
-                return
-            download_file(url, tar_filepath)
+            ext = url.split(".")[-1]
+            zip_filepath = f"{self.root}/{name}.{ext}"
+            zip_filepaths.append(zip_filepath)
+            if path_exists(zip_filepath):
+                log.info(f"{zip_filepath} is already present. Download canceled")
+            else:
+                download_file(url, zip_filepath)
+        return zip_filepaths
 
     def unzip(self, remove: bool = False):
         if path_exists(self.raw_root):
             log.info(f"{self.raw_root} is already present. Unzip canceled")
             return
-        for tar_filepath in self.tar_filepaths:
-            unzip_tar_gz(tar_filepath, self.root, remove=remove)
+        Path(self.raw_root).mkdir(parents=True, exist_ok=True)
+        for zip_filepath in self.zip_filepaths:
+            self._unzip(zip_filepath, remove=remove)
         self.move_to_raw_root()
         if remove:
-            self.tar_filepaths.clear()
+            self.zip_filepaths.clear()
 
+    @abstractmethod
+    def _unzip(self, file_path: str, remove: bool = False):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def check_if_present(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
     def move_to_raw_root(self):
         raise NotImplementedError()
 
-    def set_split_ids(self):
+    @abstractmethod
+    def _get_split_ids(self):
         raise NotImplementedError()
 
+    @abstractmethod
     def arrange_files(self):
         raise NotImplementedError()
 
-    def set_filepaths(self):
+    @abstractmethod
+    def _get_filepaths(self):
         raise NotImplementedError()
 
+    @abstractmethod
     def create_labels(self):
         raise NotImplementedError()
+
+
+class TarDataProvider(DataProvider):
+    def _unzip(self, file_path: str, remove: bool = False):
+        unzip_tar(file_path, self.root, remove=remove)
+
+
+class ZipDataProvider(DataProvider):
+    def _unzip(self, file_path: str, remove: bool = False):
+        unzip_zip(file_path, self.root, remove=remove)

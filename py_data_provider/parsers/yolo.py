@@ -48,17 +48,16 @@ def parse_segmentation_mask_to_yolo_format(
     return annotations
 
 
-def main():
-    splits = ["train", "val"]
-    for split in tqdm(splits, desc="Splits"):
-        mask_filenams = glob.glob(f"{DS_PATH}/masks/{split}/*.png")
-        for filename in tqdm(mask_filenams, desc="Masks"):
-            mask = np.array(Image.open(filename))
-            annot_txt = parse_segmentation_mask_to_yolo_format(mask, background=0, contour=255)
-            txt_label_filename = filename.replace(".png", ".txt").replace("masks", "labels")
-            with open(txt_label_filename, "w") as file:
-                file.write(annot_txt)
-
-
-if __name__ == "__main__":
-    main()
+def parse_segmentation_masks_to_yolo(
+    masks_filepaths: list[str],
+    background: int | None = None,
+    contour: int | None = None,
+):
+    for filename in tqdm(masks_filepaths, desc="Creating labels"):
+        mask = np.array(Image.open(filename))
+        label_filepath = filename.replace("masks", "labels").replace(".png", ".txt")
+        annot_txt = parse_segmentation_mask_to_yolo_format(
+            mask=mask, background=background, contour=contour
+        )
+        with open(label_filepath, "w") as file:
+            file.write(annot_txt)

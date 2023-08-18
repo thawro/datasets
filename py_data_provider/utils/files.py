@@ -5,6 +5,7 @@ from py_data_provider.utils.pylogger import get_pylogger
 import os
 import shutil
 from pathlib import Path
+import zipfile
 
 log = get_pylogger(__name__)
 
@@ -36,11 +37,20 @@ def download_file(url, filepath):
     log.info("Download finished.")
 
 
-def unzip_tar_gz(file_path, dst_path, mode: str = "r", remove=False):
+def unzip_tar(file_path, dst_path, mode: str = "r", remove=False):
     log.info(f"Unzipping {file_path} to {dst_path}.")
     with tarfile.open(file_path, mode) as tar:
         tar.extractall(dst_path)
     log.info("Unzipping finished.")
+    if remove:
+        os.remove(file_path)
+        log.info(f"Removed {file_path}.")
+
+
+def unzip_zip(file_path, dst_path, remove=False):
+    log.info(f"Unzipping {file_path} to {dst_path}.")
+    with zipfile.ZipFile(file_path, "r") as zip_ref:
+        zip_ref.extractall(dst_path)
     if remove:
         os.remove(file_path)
         log.info(f"Removed {file_path}.")
