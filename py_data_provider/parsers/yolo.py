@@ -53,7 +53,7 @@ def parse_segmentation_masks_to_yolo(
     background: int | None = None,
     contour: int | None = None,
 ):
-    for filename in tqdm(masks_filepaths, desc="Creating labels"):
+    for filename in tqdm(masks_filepaths, desc="Creating labels in yolo format"):
         mask = np.array(Image.open(filename))
         label_filepath = filename.replace("masks", "labels").replace(".png", ".txt")
         annot_txt = parse_segmentation_mask_to_yolo_format(

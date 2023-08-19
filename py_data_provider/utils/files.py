@@ -28,32 +28,36 @@ class TqdmUpTo(tqdm):
 
 
 def download_file(url, filepath):
-    log.info(f"Downloading {url} to {filepath}.")
+    log.info(f"Downloading {url} to {filepath}")
     with TqdmUpTo(
         unit="B", unit_scale=True, unit_divisor=1024, miniters=1, desc=url.split("/")[-1]
     ) as t:  # all optional kwargs
         urllib.request.urlretrieve(url, filename=filepath, reporthook=t.update_to, data=None)
         t.total = t.n
-    log.info("Download finished.")
+    log.info("Download finished")
 
 
-def unzip_tar(file_path, dst_path, mode: str = "r", remove=False):
-    log.info(f"Unzipping {file_path} to {dst_path}.")
+def unzip_tar(file_path, dst_path, mode: str = "r"):
     with tarfile.open(file_path, mode) as tar:
         tar.extractall(dst_path)
-    log.info("Unzipping finished.")
-    if remove:
-        os.remove(file_path)
-        log.info(f"Removed {file_path}.")
+    log.info("Unzipping finished")
 
 
-def unzip_zip(file_path, dst_path, remove=False):
-    log.info(f"Unzipping {file_path} to {dst_path}.")
+def unzip_zip(file_path, dst_path):
     with zipfile.ZipFile(file_path, "r") as zip_ref:
         zip_ref.extractall(dst_path)
+
+
+def unzip(file_path, dst_path, remove=False):
+    log.info(f"Unzipping {file_path} to {dst_path}.")
+    ext = file_path.split(".")[-1]
+    if ext == "tar":
+        unzip_tar(file_path, dst_path)
+    elif ext == "zip":
+        unzip_zip(file_path, dst_path)
     if remove:
         os.remove(file_path)
-        log.info(f"Removed {file_path}.")
+        log.info(f"Removed {file_path}")
 
 
 def save_txt_to_file(txt, filename):
@@ -70,24 +74,24 @@ def read_text_file(filename):
 
 
 def add_prefix_to_files(directory, prefix, ext=".png"):
-    log.info(f"Adding {prefix} prefix to all {ext} files in {directory} directory.")
+    log.info(f"Adding {prefix} prefix to all {ext} files in {directory} directory")
 
     for filename in os.listdir(directory):
         if os.path.isfile(os.path.join(directory, filename)) and filename.endswith(ext):
             new_filename = prefix + filename
             os.rename(os.path.join(directory, filename), os.path.join(directory, new_filename))
-    log.info("Prefix addition finished.")
+    log.info("Prefix addition finished")
 
 
 def move(source, destination, verbose: bool = False):
     shutil.move(source, destination)
     if verbose:
-        log.info(f"Moved {source} to {destination}.")
+        log.info(f"Moved {source} to {destination}")
 
 
 def copy_directory(source_dir, destination_dir):
     shutil.copytree(source_dir, destination_dir)
-    log.info(f"Copied {source_dir} to {destination_dir}.")
+    log.info(f"Copied {source_dir} to {destination_dir}")
 
 
 def remove_directory(dir_path):
@@ -106,8 +110,7 @@ def copy_all_files(source_dir, destination_dir, ext=".png"):
             source = source_dir / filename
             destination = destination_dir / filename
             shutil.copy2(source, destination)
-
-    log.info(f"Copied all {ext} files ({len(filenames)}) from {source_dir} to {destination_dir}.")
+    log.info(f"Copied all {ext} files ({len(filenames)}) from {source_dir} to {destination_dir}")
 
 
 def copy_files(source_filepaths, dest_filepaths):
@@ -115,7 +118,7 @@ def copy_files(source_filepaths, dest_filepaths):
         zip(source_filepaths, dest_filepaths), desc="Copying files"
     ):
         shutil.copy2(source_filepath, dest_filepath)
-    log.info(f"Copied files ({len(source_filepaths)}).")
+    log.info(f"Copied files ({len(source_filepaths)})")
 
 
 def create_dir(path: Path, return_str: bool = True):

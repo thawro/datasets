@@ -1,4 +1,4 @@
-from py_data_provider.data_providers.base import TarDataProvider
+from py_data_provider.data_providers.base import DataProvider
 from py_data_provider.utils.files import (
     path_exists,
     move,
@@ -26,8 +26,9 @@ _URLS = {
     },
 }
 
+_PERSON_PART_URL = {"person_part": "http://www.liangchiehchen.com/data/pascal_person_part.zip"}
 
-_LABELS = [
+_SEG_SEMANTIC_LABELS = [
     "aeroplane",
     "bicycle",
     "bird",
@@ -49,24 +50,44 @@ _LABELS = [
     "train",
     "tvmonitor",
 ]
+_SEG_PERSON_PART_LABELS = ["Head", "Torso", "Upper Arms", "Lower Arms", "Upper Legs", "Lower Legs"]
 
-_SEG_ID2LABEL = {i: label for i, label in enumerate(_LABELS, start=1)} | {
+_SEG_SEMANTIC_ID2LABEL = {i: label for i, label in enumerate(_SEG_SEMANTIC_LABELS, start=1)} | {
     0: "background",
     255: "void",
 }
 
+_SEG_PERSON_PART_ID2LABEL = {
+    i: label for i, label in enumerate(_SEG_PERSON_PART_LABELS, start=1)
+} | {0: "background", None: "void"}
 
-class VOCDataProvider(TarDataProvider):
+_SEG_INSTANCE_ID2LABEL = {i: str(i) for i in range(1, 100)} | {0: "background", 255: "void"}
+
+_SEG_ID2LABEL = {
+    "semantic": _SEG_SEMANTIC_ID2LABEL,
+    "person_part": _SEG_PERSON_PART_ID2LABEL,
+    "instance": _SEG_INSTANCE_ID2LABEL,
+}
+
+
+class VOCDataProvider(DataProvider):
     def __init__(
         self,
         root: str,
-        year: Literal[2007, 2012],
-        task: Literal["Action", "Layout", "Main", "Segmentation"],
+        task: Literal[
+            "Action", "Layout", "Main", "SegmentationClass", "SegmentationObject", "PersonPart"
+        ],
     ):
-        self.year = year
-        self.task = task
+        self.year = 2012
         self.task_root = f"{root}/{task}"
-        super().__init__(urls=_URLS[year], root=root)
+        if task in ["SegmentationClass", "SegmentationObject"]:
+            self.task = "Segmentation"
+        else:
+            self.task = task
+        urls = _URLS[2012]
+        if task == "PersonPart":
+            urls.update(_PERSON_PART_URL)
+        super().__init__(urls=urls, root=root)
 
     def check_if_present(self) -> bool:
         return path_exists(self.task_root)
@@ -79,8 +100,9 @@ class VOCDataProvider(TarDataProvider):
 
     def _get_split_ids(self):
         task_dir = f"{self.raw_root}/ImageSets/{self.task}"
-        train_ids = read_text_file(f"{task_dir}/train.txt")
-        val_ids = read_text_file(f"{task_dir}/val.txt")
+        id_file_suffix = "_id" if self.task == "PersonPart" else ""
+        train_ids = read_text_file(f"{task_dir}/train{id_file_suffix}.txt")
+        val_ids = read_text_file(f"{task_dir}/val{id_file_suffix}.txt")
         if self.task == "Layout":
             train_ids = [_id.split(" ")[0] for _id in train_ids]
             val_ids = [_id.split(" ")[0] for _id in val_ids]
@@ -123,22 +145,26 @@ class VOCSegmentationDataProvider(VOCDataProvider):
     def __init__(
         self,
         root: str,
-        year: Literal[2007, 2012] = 2012,
-        mode: Literal["semantic", "instance"] = "semantic",
+        mode: Literal["semantic", "instance", "person_part"] = "semantic",
         labels_format: Literal["yolo"] = "yolo",
     ):
         self.mode = mode
-        self.id2label = _SEG_ID2LABEL
+        self.id2label = _SEG_ID2LABEL[mode]
         self.label2id = {v: k for k, v in self.id2label.items()}
         self.labels_format = labels_format
-        super().__init__(root=root, year=year, task="Segmentation")
+        if mode == "semantic":
+            mask_dirname = "SegmentationClass"
+        elif mode == "instance":
+            mask_dirname = "SegmentationObject"
+        elif mode == "person_part":
+            mask_dirname = "PersonPart"
+        self.mask_dirname = mask_dirname
+        super().__init__(root=root, task=mask_dirname)
 
     def arrange_files(self):
         super().arrange_files()
-        mask_name = "SegmentationClass" if self.mode == "semantic" else "SegmentationObject"
-
         for split, ids in self.split_ids.items():
-            src_masks_path = f"{self.raw_root}/{mask_name}"
+            src_masks_path = f"{self.raw_root}/{self.mask_dirname}"
             dst_masks_path = create_dir(Path(self.task_root) / "masks" / split)
 
             src_filepaths = [f"{src_masks_path}/{_id}.png" for _id in ids]
@@ -162,8 +188,36 @@ class VOCSegmentationDataProvider(VOCDataProvider):
             log.warn(f"Only YOLO label format is implemented ({self.labels_format} passed)")
 
 
+class VOCInstanceSegmentationDataProvider(VOCSegmentationDataProvider):
+    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+        super().__init__(root=root, mode="instance", labels_format=labels_format)
+
+
+class VOCSemanticSegmentationDataProvider(VOCSegmentationDataProvider):
+    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+        super().__init__(root=root, mode="semantic", labels_format=labels_format)
+
+
+class VOCPersonPartDataProvider(VOCSegmentationDataProvider):
+    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+        super().__init__(root=root, mode="person_part", labels_format=labels_format)
+
+    def move_to_raw_root(self):
+        super().move_to_raw_root()
+        ids_src_dir = f"{self.root}/pascal_person_part/pascal_person_part_trainval_list"
+        ids_dst_dir = f"{self.raw_root}/ImageSets/PersonPart"
+        move(ids_src_dir, ids_dst_dir)
+
+        masks_src_dir = f"{self.root}/pascal_person_part/pascal_person_part_gt"
+        masks_dst_dir = f"{self.raw_root}/SegmentationPersonPart"
+        move(masks_src_dir, masks_dst_dir)
+        remove_directory(f"{self.root}/pascal_person_part")
+
+
 if __name__ == "__main__":
     from py_data_provider.utils.config import ROOT
 
     root = str(ROOT / "data" / "voc_2012")
-    dp = VOCSegmentationDataProvider(root)
+    # dp = VOCPersonPartDataProvider(root)
+    dp = VOCInstanceSegmentationDataProvider(root)
+    # dp = VOCSemanticSegmentationDataProvider(root)

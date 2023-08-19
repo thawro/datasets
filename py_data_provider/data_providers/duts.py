@@ -1,4 +1,4 @@
-from py_data_provider.data_providers.base import ZipDataProvider
+from py_data_provider.data_providers.base import DataProvider
 from py_data_provider.utils.files import (
     path_exists,
     move,
@@ -27,7 +27,7 @@ _URLS = {
 split2dirname = {"train": "DUTS-TR", "test": "DUTS-TE"}
 
 
-class DUTSDataProvider(ZipDataProvider):
+class DUTSDataProvider(DataProvider):
     def __init__(self, root: str, binarize: bool = True, labels_format: Literal["yolo"] = "yolo"):
         self.splits = ["train", "test"]
         self.task = "Segmentation"
@@ -76,7 +76,7 @@ class DUTSDataProvider(ZipDataProvider):
             copy_files(src_images_filepaths, dst_images_filepaths)
 
             if self.binarize:
-                log.info("Applying binarization (threshold = 128) for masks")
+                log.info(f"Applying binarization (threshold = 128) for {split} masks")
                 for mask_filepath in tqdm(dst_masks_filepaths, desc="Binarization"):
                     mask = np.array(Image.open(mask_filepath).convert("L"))
                     binary_mask = ((mask > 128) * 255).astype(np.uint8)

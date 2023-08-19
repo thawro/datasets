@@ -1,4 +1,4 @@
-from py_data_provider.utils.files import download_file, unzip_tar, path_exists, unzip_zip
+from py_data_provider.utils.files import download_file, unzip, path_exists
 from py_data_provider.utils.pylogger import get_pylogger
 from abc import abstractmethod
 from pathlib import Path
@@ -41,14 +41,10 @@ class DataProvider:
             return
         Path(self.raw_root).mkdir(parents=True, exist_ok=True)
         for zip_filepath in self.zip_filepaths:
-            self._unzip(zip_filepath, remove=remove)
+            unzip(zip_filepath, self.root, remove)
         self.move_to_raw_root()
         if remove:
             self.zip_filepaths.clear()
-
-    @abstractmethod
-    def _unzip(self, file_path: str, remove: bool = False):
-        raise NotImplementedError()
 
     @abstractmethod
     def check_if_present(self) -> bool:
@@ -73,13 +69,3 @@ class DataProvider:
     @abstractmethod
     def create_labels(self):
         raise NotImplementedError()
-
-
-class TarDataProvider(DataProvider):
-    def _unzip(self, file_path: str, remove: bool = False):
-        unzip_tar(file_path, self.root, remove=remove)
-
-
-class ZipDataProvider(DataProvider):
-    def _unzip(self, file_path: str, remove: bool = False):
-        unzip_zip(file_path, self.root, remove=remove)
