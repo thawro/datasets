@@ -28,6 +28,8 @@ split2dirname = {"train": "DUTS-TR", "test": "DUTS-TE"}
 
 
 class DUTSDataProvider(DataProvider):
+    URL = "http://saliencydetection.net/duts/"
+
     def __init__(self, root: str, binarize: bool = True, labels_format: Literal["yolo"] = "yolo"):
         self.splits = ["train", "test"]
         self.task = "Segmentation"

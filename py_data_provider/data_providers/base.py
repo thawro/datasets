@@ -7,9 +7,12 @@ log = get_pylogger(__name__)
 
 
 class DataProvider:
+    URL: str
+
     def __init__(self, urls: dict[str, str], root: str):
         self.urls = urls
         self.root = root
+        Path(self.root).mkdir(parents=True, exist_ok=True)
         self.raw_root = f"{root}/raw"
         if not self.check_if_present():
             self.zip_filepaths = self.download()  # TODO
@@ -28,7 +31,8 @@ class DataProvider:
         for name, url in self.urls.items():
             ext = url.split(".")[-1]
             zip_filepath = f"{self.root}/{name}.{ext}"
-            zip_filepaths.append(zip_filepath)
+            if ext in ["zip", "tar", "gz"]:
+                zip_filepaths.append(zip_filepath)
             if path_exists(zip_filepath):
                 log.info(f"{zip_filepath} is already present. Download canceled")
             else:

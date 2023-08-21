@@ -1,1 +1,1 @@
-from py_data_provider.utils import files
+from py_data_provider.utils import files, colors, images

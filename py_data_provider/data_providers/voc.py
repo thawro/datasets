@@ -71,6 +71,8 @@ _SEG_ID2LABEL = {
 
 
 class VOCDataProvider(DataProvider):
+    URL = "http://host.robots.ox.ac.uk/pascal/VOC/"
+
     def __init__(
         self,
         root: str,
@@ -199,6 +201,8 @@ class VOCSemanticSegmentationDataProvider(VOCSegmentationDataProvider):
 
 
 class VOCPersonPartDataProvider(VOCSegmentationDataProvider):
+    URL = "http://liangchiehchen.com/projects/DeepLab.html"
+
     def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
         super().__init__(root=root, mode="person_part", labels_format=labels_format)
 
