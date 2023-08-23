@@ -1,4 +1,4 @@
-from py_data_provider.utils.colors import color_map
+from geda.utils.colors import color_map
 import png
 import numpy as np
 

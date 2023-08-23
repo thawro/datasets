@@ -1,14 +1,14 @@
-from py_data_provider.data_providers.base import DataProvider
-from py_data_provider.utils.files import (
+from geda.data_providers.base import DataProvider
+from geda.utils.files import (
     path_exists,
     move,
     copy_files,
     create_dir,
 )
-from py_data_provider.parsers.yolo import parse_segmentation_masks_to_yolo
+from geda.parsers.yolo import parse_segmentation_masks_to_yolo
 from pathlib import Path
 import glob
-from py_data_provider.utils.pylogger import get_pylogger
+from geda.utils.pylogger import get_pylogger
 from PIL import Image
 import numpy as np
 from tqdm.auto import tqdm
@@ -103,7 +103,7 @@ class DUTSDataProvider(DataProvider):
 
 
 if __name__ == "__main__":
-    from py_data_provider.utils.config import ROOT
+    from geda.utils.config import ROOT
 
     root = str(ROOT / "data" / "DUTS")
     dp = DUTSDataProvider(root)

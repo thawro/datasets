@@ -1,9 +1,9 @@
-from py_data_provider.data_providers.voc import (
+from geda.data_providers.voc import (
     VOCInstanceSegmentationDataProvider,
     VOCPersonPartDataProvider,
     VOCSemanticSegmentationDataProvider,
 )
-from py_data_provider.datasets.base import BaseSegmentationDataset
+from geda.datasets.base import BaseSegmentationDataset
 from typing import Literal
 
 
@@ -29,7 +29,7 @@ class VOCPersonPartSegmentationDataset(BaseSegmentationDataset):
 
 
 if __name__ == "__main__":
-    from py_data_provider.utils.config import ROOT
+    from geda.utils.config import ROOT
 
     root = str(ROOT / "data" / "voc_2012")
     ds = VOCInstanceSegmentationDataset(root, "train")

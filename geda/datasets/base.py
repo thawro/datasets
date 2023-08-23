@@ -1,4 +1,4 @@
-from py_data_provider.data_providers.base import DataProvider
+from geda.data_providers.base import DataProvider
 from typing import Literal
 from PIL import Image
 

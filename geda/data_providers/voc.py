@@ -1,5 +1,5 @@
-from py_data_provider.data_providers.base import DataProvider
-from py_data_provider.utils.files import (
+from geda.data_providers.base import DataProvider
+from geda.utils.files import (
     path_exists,
     move,
     remove_directory,
@@ -7,11 +7,11 @@ from py_data_provider.utils.files import (
     copy_files,
     create_dir,
 )
-from py_data_provider.parsers.yolo import parse_segmentation_masks_to_yolo
+from geda.parsers.yolo import parse_segmentation_masks_to_yolo
 from typing import Literal
 from pathlib import Path
 import glob
-from py_data_provider.utils.pylogger import get_pylogger
+from geda.utils.pylogger import get_pylogger
 
 
 log = get_pylogger(__name__)
@@ -219,7 +219,7 @@ class VOCPersonPartDataProvider(VOCSegmentationDataProvider):
 
 
 if __name__ == "__main__":
-    from py_data_provider.utils.config import ROOT
+    from geda.utils.config import ROOT
 
     root = str(ROOT / "data" / "voc_2012")
     # dp = VOCPersonPartDataProvider(root)

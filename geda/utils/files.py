@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import urllib.request
 import tarfile
-from py_data_provider.utils.pylogger import get_pylogger
+from geda.utils.pylogger import get_pylogger
 import os
 import shutil
 from pathlib import Path

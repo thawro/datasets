@@ -1,5 +1,5 @@
-from py_data_provider.utils.files import download_file, unzip, path_exists
-from py_data_provider.utils.pylogger import get_pylogger
+from geda.utils.files import download_file, unzip, path_exists
+from geda.utils.pylogger import get_pylogger
 from abc import abstractmethod
 from pathlib import Path
 

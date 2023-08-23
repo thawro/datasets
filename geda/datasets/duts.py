@@ -1,5 +1,5 @@
-from py_data_provider.data_providers.duts import DUTSDataProvider
-from py_data_provider.datasets.base import BaseSegmentationDataset
+from geda.data_providers.duts import DUTSDataProvider
+from geda.datasets.base import BaseSegmentationDataset
 from typing import Literal
 
 
@@ -15,7 +15,7 @@ class DUTSSegmentationDataset(BaseSegmentationDataset):
 
 
 if __name__ == "__main__":
-    from py_data_provider.utils.config import ROOT
+    from geda.utils.config import ROOT
 
     root = str(ROOT / "data" / "DUTS")
     ds = DUTSSegmentationDataset(root, "train")
