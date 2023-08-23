@@ -47,7 +47,7 @@ By using `dataprovider.get_data()` functionality, the data is subjected to the f
 
 ### Example
 
-Resulting directory structure of the `get_data(name="VOC_SemanticSegmentation", root="data")`
+Resulting directory structure of the `get_data(name="VOC_SemanticSegmentation", root="data/VOC")`
 
     .
     └── data
