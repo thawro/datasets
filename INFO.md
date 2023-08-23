@@ -43,8 +43,27 @@ By using `dataprovider.get_data()` functionality, the data is subjected to the f
 3. Move the files to `<root>/raw` directory
 4. Find the split ids (file basenames or indices - depending on the dataset)
 5. Arrange files, i.e. move (or copy) files from `<root>/raw` directory to task-specific directories
-    > **Example**: In segmentation task the image files (`.jpg`) are placed in `<root>/<TaskName>/images/<split>` and segmentation masks (`.png`) are placed in `<root>/<TaskName>/masks/<split>`.
 6. *[Optional]* Create labels in specific format (f.e. YOLO)
+
+### Example
+
+Resulting directory structure of the `get_data(name="VOC_SemanticSegmentation", root="data")`
+
+    .
+    └── data
+        └── VOC
+            ├── raw
+            │   ├── Annotations
+            │   ├── ImageSets
+            │   ├── JPEGImages
+            │   ├── SegmentationClass
+            │   └── SegmentationObject
+            ├── SegmentationClass
+            │   ├── annots
+            │   ├── images
+            │   ├── labels
+            │   └── masks
+            └── trainval_2012.tar
 
 ## Currently supported datasets
 
