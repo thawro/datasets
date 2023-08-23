@@ -34,6 +34,18 @@ dataprovider.get_data()
 > `DUTS`, `NYUDv2`, `VOC_InstanceSegmentation`, `VOC_SemanticSegmentation`, `VOC_PersonPartSegmentation`, `VOC_Main`, `VOC_Action`, `VOC_Layout`
 
 
+## What it does
+
+By using `dataprovider.get_data()` functionality, the data is subjected to the following pipeline:
+
+1. Download the data from source (specified by the `_URLS` variable in each module)
+2. Unzip the files if needed (in case of `tar`, `zip` or `gz` files downloaded)
+3. Move the files to `<root>/raw` directory
+4. Find the split ids (file basenames or indices - depending on the dataset)
+5. Arrange files, i.e. move (or copy) files from `<root>/raw` directory to task-specific directories
+    > **Example**: In segmentation task the image files (`.jpg`) are placed in `<root>/<TaskName>/images/<split>` and segmentation masks (`.png`) are placed in `<root>/<TaskName>/masks/<split>`.
+6. *[Optional]* Create labels in specific format (f.e. YOLO)
+
 ## Currently supported datasets
 
 ### Image Segmentation
