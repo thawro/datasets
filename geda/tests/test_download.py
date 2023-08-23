@@ -20,4 +20,5 @@ def test_download():
 
 
 if __name__ == "__main__":
-    test_download()
+    # test_download()
+    _download("NYUDv2")
