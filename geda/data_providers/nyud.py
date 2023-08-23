@@ -1,6 +1,5 @@
 from geda.data_providers.base import DataProvider
 from geda.utils.files import (
-    path_exists,
     move,
     save_txt_to_file,
     create_dir,
@@ -34,9 +33,6 @@ class NYUDv2DataProvider(DataProvider):
         self.task_root = f"{root}/{self.task}"
         self.labels_format = labels_format
         super().__init__(urls=_URLS, root=root)
-
-    def check_if_present(self) -> bool:
-        return path_exists(self.task_root)
 
     def move_to_raw_root(self):
         src_data_path = f"{self.root}/nyu_depth_v2_labeled.mat"
@@ -80,7 +76,7 @@ class NYUDv2DataProvider(DataProvider):
             for name in names:
                 log.info(f"Saving {split} {name} to {paths[name]}")
 
-            for idx in tqdm(idxs, f"{split} saving images"):
+            for idx in tqdm(idxs, f"Saving {split} images"):
                 for name, image_data in numpy_images_data.items():
                     img = image_data[..., idx]
                     np.save(f"{paths[name]}/{idx}.npy", img)

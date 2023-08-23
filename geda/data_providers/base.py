@@ -12,8 +12,12 @@ class DataProvider:
     def __init__(self, urls: dict[str, str], root: str):
         self.urls = urls
         self.root = root
+        if not hasattr(self, "task_root"):
+            self.task_root = "Task"
         Path(self.root).mkdir(parents=True, exist_ok=True)
         self.raw_root = f"{root}/raw"
+
+    def get_data(self):
         if not self.check_if_present():
             self.zip_filepaths = self.download()  # TODO
             self.unzip()
@@ -22,7 +26,7 @@ class DataProvider:
             self.create_labels()
             self.filepaths = self._get_filepaths()
         else:
-            log.info(f"Dataset is already present")
+            log.info("Canceling data download and files rearranging")
             self.split_ids = self._get_split_ids()
             self.filepaths = self._get_filepaths()
 
@@ -50,9 +54,10 @@ class DataProvider:
         if remove:
             self.zip_filepaths.clear()
 
-    @abstractmethod
     def check_if_present(self) -> bool:
-        raise NotImplementedError()
+        is_present = path_exists(self.task_root)
+        log.info(f"{self.task_root} is already present")
+        return is_present
 
     @abstractmethod
     def move_to_raw_root(self):
@@ -72,4 +77,4 @@ class DataProvider:
 
     @abstractmethod
     def create_labels(self):
-        raise NotImplementedError()
+        log.warn(f"create_labels method not implemented for {self.__class__.__name__}")

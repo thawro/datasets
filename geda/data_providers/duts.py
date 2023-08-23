@@ -1,6 +1,5 @@
 from geda.data_providers.base import DataProvider
 from geda.utils.files import (
-    path_exists,
     move,
     copy_files,
     create_dir,
@@ -37,9 +36,6 @@ class DUTSDataProvider(DataProvider):
         self.binarize = binarize
         self.labels_format = labels_format
         super().__init__(urls=_URLS, root=root)
-
-    def check_if_present(self) -> bool:
-        return path_exists(self.task_root)
 
     def move_to_raw_root(self):
         for split in self.splits:

@@ -1,6 +1,6 @@
 from geda.data_providers.voc import (
     VOCInstanceSegmentationDataProvider,
-    VOCPersonPartDataProvider,
+    VOCPersonPartSegmentationDataProvider,
     VOCSemanticSegmentationDataProvider,
 )
 from geda.datasets.base import BaseSegmentationDataset
@@ -25,7 +25,7 @@ class VOCPersonPartSegmentationDataset(BaseSegmentationDataset):
     def __init__(
         self, root: str, split: Literal["train", "val"], labels_format: Literal["yolo"] = "yolo"
     ):
-        super().__init__(root, split, VOCPersonPartDataProvider(root, labels_format))
+        super().__init__(root, split, VOCPersonPartSegmentationDataProvider(root, labels_format))
 
 
 if __name__ == "__main__":

@@ -1,11 +1,13 @@
 from geda.data_providers.base import DataProvider
+
 from geda.utils.files import (
-    path_exists,
     move,
     remove_directory,
     read_text_file,
     copy_files,
     create_dir,
+    unzip,
+    path_exists,
 )
 from geda.parsers.yolo import parse_segmentation_masks_to_yolo
 from typing import Literal
@@ -77,22 +79,26 @@ class VOCDataProvider(DataProvider):
         self,
         root: str,
         task: Literal[
-            "Action", "Layout", "Main", "SegmentationClass", "SegmentationObject", "PersonPart"
+            "Action",
+            "Layout",
+            "Main",
+            "SegmentationClass",
+            "SegmentationObject",
+            "SegmentationPersonPart",
         ],
+        labels_format: Literal["yolo"] = "yolo",
     ):
         self.year = 2012
         self.task_root = f"{root}/{task}"
+        self.labels_format = labels_format
         if task in ["SegmentationClass", "SegmentationObject"]:
             self.task = "Segmentation"
         else:
             self.task = task
         urls = _URLS[2012]
-        if task == "PersonPart":
+        if task == "SegmentationPersonPart":
             urls.update(_PERSON_PART_URL)
         super().__init__(urls=urls, root=root)
-
-    def check_if_present(self) -> bool:
-        return path_exists(self.task_root)
 
     def move_to_raw_root(self):
         src_dir = f"{self.root}/VOCdevkit/VOC{self.year}"
@@ -102,7 +108,7 @@ class VOCDataProvider(DataProvider):
 
     def _get_split_ids(self):
         task_dir = f"{self.raw_root}/ImageSets/{self.task}"
-        id_file_suffix = "_id" if self.task == "PersonPart" else ""
+        id_file_suffix = "_id" if self.task == "SegmentationPersonPart" else ""
         train_ids = read_text_file(f"{task_dir}/train{id_file_suffix}.txt")
         val_ids = read_text_file(f"{task_dir}/val{id_file_suffix}.txt")
         if self.task == "Layout":
@@ -143,6 +149,21 @@ class VOCDataProvider(DataProvider):
         return filepaths
 
 
+class VOCMainDataProvider(VOCDataProvider):
+    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+        super().__init__(root=root, task="Main", labels_format=labels_format)
+
+
+class VOCActionDataProvider(VOCDataProvider):
+    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+        super().__init__(root=root, task="Action", labels_format=labels_format)
+
+
+class VOCLayoutDataProvider(VOCDataProvider):
+    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+        super().__init__(root=root, task="Layout", labels_format=labels_format)
+
+
 class VOCSegmentationDataProvider(VOCDataProvider):
     def __init__(
         self,
@@ -153,15 +174,14 @@ class VOCSegmentationDataProvider(VOCDataProvider):
         self.mode = mode
         self.id2label = _SEG_ID2LABEL[mode]
         self.label2id = {v: k for k, v in self.id2label.items()}
-        self.labels_format = labels_format
         if mode == "semantic":
             mask_dirname = "SegmentationClass"
         elif mode == "instance":
             mask_dirname = "SegmentationObject"
         elif mode == "person_part":
-            mask_dirname = "PersonPart"
+            mask_dirname = "SegmentationPersonPart"
         self.mask_dirname = mask_dirname
-        super().__init__(root=root, task=mask_dirname)
+        super().__init__(root=root, task=mask_dirname, labels_format=labels_format)
 
     def arrange_files(self):
         super().arrange_files()
@@ -200,16 +220,43 @@ class VOCSemanticSegmentationDataProvider(VOCSegmentationDataProvider):
         super().__init__(root=root, mode="semantic", labels_format=labels_format)
 
 
-class VOCPersonPartDataProvider(VOCSegmentationDataProvider):
+class VOCPersonPartSegmentationDataProvider(VOCSegmentationDataProvider):
     URL = "http://liangchiehchen.com/projects/DeepLab.html"
 
     def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
         super().__init__(root=root, mode="person_part", labels_format=labels_format)
 
-    def move_to_raw_root(self):
-        super().move_to_raw_root()
+    def unzip(self, remove: bool = False):
+        Path(self.raw_root).mkdir(parents=True, exist_ok=True)
+        is_voc_present = False
+        is_personpart_present = False
+
+        for zip_filepath in self.zip_filepaths:
+            if zip_filepath.endswith("trainval_2012.tar") and path_exists(
+                f"{self.raw_root}/Annotations"
+            ):
+                log.info("VOC trainval 2012 already downloaded. Skipping")
+                is_voc_present = True
+                continue
+            elif zip_filepath.endswith("person_part.zip") and path_exists(
+                f"{self.raw_root}/ImageSets/SegmentationPersonPart"
+            ):
+                is_personpart_present = True
+                log.info("PersonPart dataset already downloaded. Skipping")
+                continue
+            else:
+                unzip(zip_filepath, self.root, remove)
+        self.move_to_raw_root(is_voc_present, is_personpart_present)
+        if remove:
+            self.zip_filepaths.clear()
+
+    def move_to_raw_root(self, is_voc_present: bool, is_personpart_present: bool):
+        if not is_voc_present:
+            super().move_to_raw_root()
+        if is_personpart_present:
+            return
         ids_src_dir = f"{self.root}/pascal_person_part/pascal_person_part_trainval_list"
-        ids_dst_dir = f"{self.raw_root}/ImageSets/PersonPart"
+        ids_dst_dir = f"{self.raw_root}/ImageSets/SegmentationPersonPart"
         move(ids_src_dir, ids_dst_dir)
 
         masks_src_dir = f"{self.root}/pascal_person_part/pascal_person_part_gt"
@@ -222,6 +269,6 @@ if __name__ == "__main__":
     from geda.utils.config import ROOT
 
     root = str(ROOT / "data" / "voc_2012")
-    # dp = VOCPersonPartDataProvider(root)
+    # dp = VOCPersonPartSegmentationDataProvider(root)
     dp = VOCInstanceSegmentationDataProvider(root)
     # dp = VOCSemanticSegmentationDataProvider(root)

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geda"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["thawro <tomaszhawro.kontakt@gmail.com>"]
 homepage = "https://github.com/thawro/geda"
@@ -9,7 +9,7 @@ readme = "README.md"
 packages = [{ include = "geda" }]
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.12"
+python = "^3.10"
 pre-commit = "^3.2.2"
 black = "^23.3.0"
 isort = "^5.12.0"
