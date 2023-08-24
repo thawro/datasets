@@ -1,4 +1,4 @@
-from geda.data_providers.base import DataProvider
+from geda.data_providers.base import SegmentationDataProvider
 
 from geda.utils.files import (
     move,
@@ -53,6 +53,7 @@ _SEG_SEMANTIC_LABELS = [
     "tvmonitor",
 ]
 _SEG_PERSON_PART_LABELS = ["Head", "Torso", "Upper Arms", "Lower Arms", "Upper Legs", "Lower Legs"]
+_SEG_INSTANCE_LABELS = [str(i) for i in range(1, 256)]
 
 _SEG_SEMANTIC_ID2LABEL = {i: label for i, label in enumerate(_SEG_SEMANTIC_LABELS, start=1)} | {
     0: "background",
@@ -63,7 +64,11 @@ _SEG_PERSON_PART_ID2LABEL = {
     i: label for i, label in enumerate(_SEG_PERSON_PART_LABELS, start=1)
 } | {0: "background", None: "void"}
 
-_SEG_INSTANCE_ID2LABEL = {i: str(i) for i in range(1, 100)} | {0: "background", 255: "void"}
+
+_SEG_INSTANCE_ID2LABEL = {i: label for i, label in enumerate(_SEG_INSTANCE_LABELS, start=1)} | {
+    0: "background",
+    255: "void",
+}
 
 _SEG_ID2LABEL = {
     "semantic": _SEG_SEMANTIC_ID2LABEL,
@@ -72,7 +77,7 @@ _SEG_ID2LABEL = {
 }
 
 
-class VOCDataProvider(DataProvider):
+class VOCDataProvider(SegmentationDataProvider):
     URL = "http://host.robots.ox.ac.uk/pascal/VOC/"
 
     def __init__(
@@ -86,11 +91,10 @@ class VOCDataProvider(DataProvider):
             "SegmentationObject",
             "SegmentationPersonPart",
         ],
-        labels_format: Literal["yolo"] = "yolo",
+        labels_format: Literal["yolo"] | None = "yolo",
     ):
         self.year = 2012
         self.task_root = f"{root}/{task}"
-        self.labels_format = labels_format
         if task in ["SegmentationClass", "SegmentationObject"]:
             self.task = "Segmentation"
         else:
@@ -98,7 +102,7 @@ class VOCDataProvider(DataProvider):
         urls = _URLS[2012]
         if task == "SegmentationPersonPart":
             urls.update(_PERSON_PART_URL)
-        super().__init__(urls=urls, root=root)
+        super().__init__(urls=urls, root=root, labels_format=labels_format)
 
     def move_to_raw_root(self):
         src_dir = f"{self.root}/VOCdevkit/VOC{self.year}"
@@ -138,16 +142,6 @@ class VOCDataProvider(DataProvider):
             copy_files(src_annots_filepaths, dst_annots_filepaths)
             copy_files(src_images_filepaths, dst_images_filepaths)
 
-    def _get_filepaths(self, dirnames: list[str] = ["annots", "images", "labels"]):
-        filepaths = {}
-        for dirname in dirnames:
-            splits_paths = {}
-            for split in self.split_ids:
-                paths = glob.glob(f"{self.task_root}/{dirname}/{split}/*")
-                splits_paths[split] = sorted(paths)
-            filepaths[dirname] = splits_paths
-        return filepaths
-
 
 class VOCMainDataProvider(VOCDataProvider):
     def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
@@ -169,11 +163,10 @@ class VOCSegmentationDataProvider(VOCDataProvider):
         self,
         root: str,
         mode: Literal["semantic", "instance", "person_part"] = "semantic",
-        labels_format: Literal["yolo"] = "yolo",
+        labels_format: Literal["yolo"] | None = "yolo",
     ):
         self.mode = mode
-        self.id2label = _SEG_ID2LABEL[mode]
-        self.label2id = {v: k for k, v in self.id2label.items()}
+        self._set_id2class(id2class=_SEG_ID2LABEL[mode])
         if mode == "semantic":
             mask_dirname = "SegmentationClass"
         elif mode == "instance":
@@ -203,27 +196,27 @@ class VOCSegmentationDataProvider(VOCDataProvider):
         if self.labels_format == "yolo":
             parse_segmentation_masks_to_yolo(
                 masks_filepaths,
-                background=self.label2id["background"],
-                contour=self.label2id["void"],
+                background=self.class2id["background"],
+                contour=self.class2id["void"],
             )
         else:
             log.warn(f"Only YOLO label format is implemented ({self.labels_format} passed)")
 
 
 class VOCInstanceSegmentationDataProvider(VOCSegmentationDataProvider):
-    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+    def __init__(self, root: str, labels_format: Literal["yolo"] | None = None):
         super().__init__(root=root, mode="instance", labels_format=labels_format)
 
 
 class VOCSemanticSegmentationDataProvider(VOCSegmentationDataProvider):
-    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+    def __init__(self, root: str, labels_format: Literal["yolo"] | None = None):
         super().__init__(root=root, mode="semantic", labels_format=labels_format)
 
 
 class VOCPersonPartSegmentationDataProvider(VOCSegmentationDataProvider):
     URL = "http://liangchiehchen.com/projects/DeepLab.html"
 
-    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
+    def __init__(self, root: str, labels_format: Literal["yolo"] | None = None):
         super().__init__(root=root, mode="person_part", labels_format=labels_format)
 
     def unzip(self, remove: bool = False):

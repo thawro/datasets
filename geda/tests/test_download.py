@@ -11,7 +11,9 @@ ROOTS = {
 def _download(name: str):
     root_name, *_ = name.split("_")
     root = str(ROOTS[root_name])
-    get_data(name, root=root)
+    dp = get_data(name, root=root)
+    print(dp.class_frequencies)
+    print(dp.class_counts)
 
 
 def test_download():
@@ -21,4 +23,5 @@ def test_download():
 
 if __name__ == "__main__":
     # test_download()
-    _download("NYUDv2")
+    # _download("NYUDv2")
+    _download("VOC_SemanticSegmentation")

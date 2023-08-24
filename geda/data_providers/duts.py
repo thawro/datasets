@@ -1,4 +1,4 @@
-from geda.data_providers.base import DataProvider
+from geda.data_providers.base import SegmentationDataProvider
 from geda.utils.files import (
     move,
     copy_files,
@@ -25,26 +25,32 @@ _URLS = {
 
 split2dirname = {"train": "DUTS-TR", "test": "DUTS-TE"}
 
+_ID2CLASS = {0: "background", 1: "salient"}
+SPLITS = ["train", "test"]
 
-class DUTSDataProvider(DataProvider):
+
+class DUTSDataProvider(SegmentationDataProvider):
     URL = "http://saliencydetection.net/duts/"
 
-    def __init__(self, root: str, binarize: bool = True, labels_format: Literal["yolo"] = "yolo"):
-        self.splits = ["train", "test"]
+    def __init__(
+        self,
+        root: str,
+        binarize: bool = True,
+        labels_format: Literal["yolo"] | None = None,
+    ):
         self.task = "Segmentation"
         self.task_root = f"{root}/{self.task}"
         self.binarize = binarize
-        self.labels_format = labels_format
-        super().__init__(urls=_URLS, root=root)
+        super().__init__(urls=_URLS, root=root, labels_format=labels_format)
 
     def move_to_raw_root(self):
-        for split in self.splits:
+        for split in SPLITS:
             src_dir = f"{self.root}/{split2dirname[split]}/"
             move(src_dir, self.raw_root)
 
     def _get_split_ids(self):
         split_ids = {}
-        for split in self.splits:
+        for split in SPLITS:
             split_name = split2dirname[split]
             filepaths = sorted(glob.glob(f"{self.raw_root}/{split_name}/{split_name}-Mask/*png"))
             ids = [os.path.basename(path).split(".")[0] for path in filepaths]
@@ -55,6 +61,7 @@ class DUTSDataProvider(DataProvider):
         for split, ids in self.split_ids.items():
             names = ["masks", "images", "labels"]
             dst_paths = {name: create_dir(Path(self.task_root) / name / split) for name in names}
+            self._set_id2class(id2class=_ID2CLASS)
             split_name = split2dirname[split]
             src_paths = {
                 "masks": f"{self.raw_root}/{split_name}/{split_name}-Mask",
@@ -79,16 +86,6 @@ class DUTSDataProvider(DataProvider):
                     mask = np.array(Image.open(mask_filepath).convert("L"))
                     binary_mask = ((mask > 128) * 255).astype(np.uint8)
                     Image.fromarray(binary_mask).save(mask_filepath)
-
-    def _get_filepaths(self, dirnames: list[str] = ["masks", "images", "labels"]):
-        filepaths = {}
-        for dirname in dirnames:
-            splits_paths = {}
-            for split in self.split_ids:
-                paths = glob.glob(f"{self.task_root}/{dirname}/{split}/*")
-                splits_paths[split] = sorted(paths)
-            filepaths[dirname] = splits_paths
-        return filepaths
 
     def create_labels(self):
         masks_filepaths = sorted(glob.glob(f"{self.task_root}/masks/*/*"))

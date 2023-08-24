@@ -1,7 +1,19 @@
-from geda.utils.files import download_file, unzip, path_exists
+from geda.utils.files import (
+    download_file,
+    unzip,
+    path_exists,
+    load_yaml,
+    save_yaml,
+)
 from geda.utils.pylogger import get_pylogger
 from abc import abstractmethod
 from pathlib import Path
+import glob
+from PIL import Image
+import numpy as np
+from tqdm.auto import tqdm
+from functools import cached_property
+from typing import Literal
 
 log = get_pylogger(__name__)
 
@@ -67,6 +79,10 @@ class DataProvider:
     def _get_split_ids(self):
         raise NotImplementedError()
 
+    @property
+    def splits(self) -> list[str]:
+        return list(self.split_ids.keys())
+
     @abstractmethod
     def arrange_files(self):
         raise NotImplementedError()
@@ -78,3 +94,92 @@ class DataProvider:
     @abstractmethod
     def create_labels(self):
         log.warn(f"create_labels method not implemented for {self.__class__.__name__}")
+
+
+class SegmentationDataProvider(DataProvider):
+    def __init__(
+        self, urls: dict[str, str], root: str, labels_format: Literal["yolo"] | None = "yolo"
+    ):
+        super().__init__(urls, root)
+        self.labels_format = labels_format
+
+    def _get_filepaths(self, dirnames: list[str] = ["masks", "images", "labels"]):
+        filepaths = {}
+        for dirname in dirnames:
+            splits_paths = {}
+            for split in self.split_ids:
+                paths = glob.glob(f"{self.task_root}/{dirname}/{split}/*")
+                splits_paths[split] = sorted(paths)
+            filepaths[dirname] = splits_paths
+        return filepaths
+
+    def _load_img_to_array(self, filepath: str) -> np.ndarray:
+        if filepath.endswith((".jpg", "png", "jpeg")):
+            return np.array(Image.open(filepath))
+        elif filepath.endswith(".npy"):
+            return np.load(filepath)
+        else:
+            raise Exception("Wrong file extension. .jpg, .png, .jpeg and .npy are supported.")
+
+    def _get_class_counts(self, masks_dirname: str = "masks") -> dict[str, dict[str, int]]:
+        class_counts_path = f"{self.task_root}/class_counts.yaml"
+        if path_exists(class_counts_path):
+            log.info(f"{class_counts_path} is present. Loading counts from that file.")
+            return load_yaml(class_counts_path)
+        splits_cls_freqs = {}
+        for split in self.splits:
+            masks_filepaths = self.filepaths[masks_dirname][split]
+            classes_counts = {}
+            for path in tqdm(masks_filepaths, desc=f"Counting class pixels for {split} split"):
+                mask = self._load_img_to_array(path)
+                classes, counts = np.unique(mask, return_counts=True)
+                for _class, count in zip(classes, counts):
+                    if _class not in classes_counts:
+                        classes_counts[_class.item()] = count.item()
+                    else:
+                        classes_counts[_class.item()] += count.item()
+            splits_cls_freqs[split] = classes_counts
+        save_yaml(splits_cls_freqs, class_counts_path)
+        return splits_cls_freqs
+
+    def _get_class_frequencies(self) -> dict[str, dict[str, float]]:
+        class_frequencies_path = f"{self.task_root}/class_frequencies.yaml"
+        if path_exists(class_frequencies_path):
+            log.info(f"{class_frequencies_path} is present. Loading frequencies from that file.")
+            return load_yaml(class_frequencies_path)
+        splits_cls_freqs = {}
+        for split in self.splits:
+            split_cls_counts = self.class_counts[split]
+            n_total_pixels = sum(split_cls_counts.values())
+            cls_freqs = {k: v / n_total_pixels for k, v in split_cls_counts.items()}
+            splits_cls_freqs[split] = cls_freqs
+        save_yaml(splits_cls_freqs, class_frequencies_path)
+        return splits_cls_freqs
+
+    def _set_id2class(self, id2class: dict[int, str]):
+        self._id2class = id2class
+
+    @cached_property
+    def class_counts(self):
+        return self._get_class_counts()
+
+    @cached_property
+    def id2class(self):
+        return self._id2class
+
+    @cached_property
+    def class_frequencies(self):
+        return self._get_class_frequencies()
+
+    @cached_property
+    def class2id(self):
+        return {v: k for k, v in self.id2class.items()}
+
+    def save_id2class(self):
+        save_yaml(self.id2class, f"{self.task_root}/id2class.yaml")
+
+    def get_data(self):
+        super().get_data()
+        self.save_id2class()
+        self._get_class_counts()
+        self._get_class_frequencies()

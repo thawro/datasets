@@ -1,6 +1,7 @@
-from geda.data_providers.base import DataProvider
+from geda.data_providers.base import SegmentationDataProvider
 from geda.utils.files import (
     move,
+    copy_files,
     save_txt_to_file,
     create_dir,
 )
@@ -24,23 +25,21 @@ _URLS = {
 }
 
 
-class NYUDv2DataProvider(DataProvider):
+class NYUDv2DataProvider(SegmentationDataProvider):
     URL = "https://cs.nyu.edu/~silberman/projects/indoor_scene_seg_sup.html"
 
-    def __init__(self, root: str, labels_format: Literal["yolo"] = "yolo"):
-        self.splits = ["train", "test"]
+    def __init__(self, root: str, labels_format: Literal["yolo"] | None = "yolo"):
         self.task = "Segmentation"
         self.task_root = f"{root}/{self.task}"
-        self.labels_format = labels_format
-        super().__init__(urls=_URLS, root=root)
+        super().__init__(urls=_URLS, root=root, labels_format=labels_format)
 
     def move_to_raw_root(self):
         src_data_path = f"{self.root}/nyu_depth_v2_labeled.mat"
         src_splits_path = f"{self.root}/splits.mat"
-        # dst_data_path = f"{self.raw_root}/nyud_depth_v2_labeled.mat"
-        # dst_splits_path = f"{self.raw_root}/splits.mat"
-        move(src_data_path, self.raw_root)
-        move(src_splits_path, self.raw_root)
+        copy_files([src_data_path], [self.raw_root])
+        copy_files([src_splits_path], [self.raw_root])
+        # move(src_data_path, self.raw_root) # TODO: move instead of copy? saves place
+        # move(src_splits_path, self.raw_root)
 
     def _get_split_ids(self):
         splits = scipy.io.loadmat(f"{self.raw_root}/splits.mat")
@@ -64,11 +63,11 @@ class NYUDv2DataProvider(DataProvider):
         images = data_dict["images"]  # HW3N
 
         classnames = ["unlabeled"] + [names[0] for names in data_dict["names"]]  # 1 + 894
+        id2class = {i: _class for i, _class in enumerate(classnames)}
+        self._set_id2class(id2class=id2class)
         scenes = [names[0] for names in data_dict["sceneTypes"]]  # N
 
-        classnames_txt = "\n".join(classnames)
         Path(self.task_root).mkdir(parents=True, exist_ok=True)
-        save_txt_to_file(classnames_txt, f"{self.task_root}/classnames.txt")
 
         for split, idxs in self.split_ids.items():
             names = list(numpy_images_data.keys()) + ["labels", "scenes", "images"]
@@ -86,22 +85,27 @@ class NYUDv2DataProvider(DataProvider):
                 scene_filepath = f"{paths['scenes']}/{idx}.txt"
                 save_txt_to_file(scene, scene_filepath)
 
-    def _get_filepaths(self, dirnames: list[str] = ["masks", "images", "labels"]):
-        filepaths = {}
-        for dirname in dirnames:
-            splits_paths = {}
-            for split in self.split_ids:
-                paths = glob.glob(f"{self.task_root}/{dirname}/{split}/*")
-                splits_paths[split] = sorted(paths)
-            filepaths[dirname] = splits_paths
-        return filepaths
-
     def create_labels(self):
         masks_filepaths = sorted(glob.glob(f"{self.task_root}/masks/*/*"))
         if self.labels_format == "yolo":
             parse_segmentation_masks_to_yolo(masks_filepaths, background=0, contour=None)
         else:
             log.warn(f"Only YOLO label format is implemented ({self.labels_format} passed)")
+
+    def _get_class_counts(self):
+        return super()._get_class_counts(masks_dirname="semantic_masks")
+
+    def _get_filepaths(self):
+        return super()._get_filepaths(
+            dirnames=[
+                "semantic_masks",
+                "instance_masks",
+                "scenes",
+                "depths_masks",
+                "images",
+                "labels",
+            ]
+        )
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@ import os
 import shutil
 from pathlib import Path
 import zipfile
+import yaml
+
 
 log = get_pylogger(__name__)
 
@@ -69,7 +71,6 @@ def read_text_file(filename):
     with open(filename, "r") as file:
         lines = file.readlines()
         lines = [line.strip() for line in lines]  # Optional: Remove leading/trailing whitespace
-
     return lines
 
 
@@ -126,3 +127,14 @@ def create_dir(path: Path, return_str: bool = True):
     if return_str:
         return str(path)
     return path
+
+
+def load_yaml(path: Path | str) -> dict:
+    with open(path, "r") as file:
+        yaml_dct = yaml.safe_load(file)
+    return yaml_dct
+
+
+def save_yaml(dct: dict, path: Path | str):
+    with open(path, "w") as file:
+        yaml.dump(dct, file)
