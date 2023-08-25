@@ -68,7 +68,8 @@ class DataProvider:
 
     def check_if_present(self) -> bool:
         is_present = path_exists(self.task_root)
-        log.info(f"{self.task_root} is already present")
+        if is_present:
+            log.info(f"{self.task_root} is already present")
         return is_present
 
     @abstractmethod

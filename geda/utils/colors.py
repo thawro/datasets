@@ -28,13 +28,14 @@ def color_map(N=256, normalized=False):
     return cmap
 
 
-def color_map_viz(labels: list[str], background=0, void=255):
-    nclasses = len(labels)
-    if background is not None:
-        labels.insert(background, "background")
+def color_map_viz(labels: list[str], background=0, void=255, ax=None):
+    _labels = labels.copy()
+    nclasses = len(_labels)
+    if background is not None and "background" not in _labels:
+        _labels.insert(background, "background")
         nclasses += 1
-    if void is not None:
-        labels.insert(void, "void")
+    if void is not None and "void" not in _labels:
+        _labels.insert(void, "void")
 
     row_size = 50
     col_size = 500
@@ -44,7 +45,8 @@ def color_map_viz(labels: list[str], background=0, void=255):
         array[i * row_size : i * row_size + row_size, :] = cmap[i]
     array[nclasses * row_size : nclasses * row_size + row_size, :] = cmap[-1]
 
-    plt.imshow(array)
-    plt.yticks([row_size * i + row_size / 2 for i in range(len(labels))], labels)
-    plt.xticks([])
-    plt.show()
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.imshow(array)
+    ax.set_yticks([row_size * i + row_size / 2 for i in range(len(_labels))], _labels)
+    ax.set_xticks([])

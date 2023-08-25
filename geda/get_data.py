@@ -1,15 +1,17 @@
 from typing import Literal
 from geda import data_providers
+import geda.data_providers as gdp
 
 DATA_PROVIDERS = {
-    "DUTS": data_providers.duts.DUTSDataProvider,
-    "NYUDv2": data_providers.nyud.NYUDv2DataProvider,
-    "VOC_InstanceSegmentation": data_providers.voc.VOCInstanceSegmentationDataProvider,
-    "VOC_SemanticSegmentation": data_providers.voc.VOCSemanticSegmentationDataProvider,
-    "VOC_PersonPartSegmentation": data_providers.voc.VOCPersonPartSegmentationDataProvider,
-    "VOC_Main": data_providers.voc.VOCMainDataProvider,
-    "VOC_Action": data_providers.voc.VOCActionDataProvider,
-    "VOC_Layout": data_providers.voc.VOCLayoutDataProvider,
+    "DUTS": gdp.duts.DUTSDataProvider,
+    "NYUDv2": gdp.nyud.NYUDv2DataProvider,
+    "VOC_InstanceSegmentation": gdp.voc.VOCInstanceSegmentationDataProvider,
+    "VOC_SemanticSegmentation": gdp.voc.VOCSemanticSegmentationDataProvider,
+    "VOC_PersonPartSegmentation": gdp.voc.VOCPersonPartSegmentationDataProvider,
+    "VOC_SemanticSegmentationAug": gdp.voc.VOCSemanticSegmentationAugDataProvider,
+    "VOC_Main": gdp.voc.VOCMainDataProvider,
+    "VOC_Action": gdp.voc.VOCActionDataProvider,
+    "VOC_Layout": gdp.voc.VOCLayoutDataProvider,
 }
 
 DATA_PROVIDERS_NAMES = Literal[
@@ -17,6 +19,7 @@ DATA_PROVIDERS_NAMES = Literal[
     "NYUDv2",
     "VOC_InstanceSegmentation",
     "VOC_SemanticSegmentation",
+    "VOC_SemanticSegmentationAug",
     "VOC_PersonPartSegmentation",
     "VOC_Main",
     "VOC_Action",
@@ -24,7 +27,7 @@ DATA_PROVIDERS_NAMES = Literal[
 ]
 
 
-def get_data(name: DATA_PROVIDERS_NAMES, root: str, **kwargs) -> data_providers.base.DataProvider:
-    data_provider: data_providers.base.DataProvider = DATA_PROVIDERS[name](root=root)
+def get_data(name: DATA_PROVIDERS_NAMES, root: str, **kwargs) -> gdp.base.DataProvider:
+    data_provider: gdp.base.DataProvider = DATA_PROVIDERS[name](root=root)
     data_provider.get_data()
     return data_provider

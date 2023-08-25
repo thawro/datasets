@@ -8,6 +8,7 @@ from geda.utils.files import (
     create_dir,
     unzip,
     path_exists,
+    download_file,
 )
 from geda.parsers.yolo import parse_segmentation_masks_to_yolo
 from typing import Literal
@@ -17,6 +18,10 @@ from geda.utils.pylogger import get_pylogger
 
 
 log = get_pylogger(__name__)
+
+_TRAINAUG_IDS_URL = "https://gist.githubusercontent.com/sun11/2dbda6b31acc7c6292d14a872d0c90b7/raw/5f5a5270089239ef2f6b65b1cc55208355b5acca/trainaug.txt"
+
+_SBD_URL = {"trainaug": "https://www.dropbox.com/s/oeu149j8qtbs1x0/SegmentationClassAug.zip?dl=0"}
 
 _URLS = {
     2007: {
@@ -72,6 +77,7 @@ _SEG_INSTANCE_ID2LABEL = {i: label for i, label in enumerate(_SEG_INSTANCE_LABEL
 
 _SEG_ID2LABEL = {
     "semantic": _SEG_SEMANTIC_ID2LABEL,
+    "semantic_aug": _SEG_SEMANTIC_ID2LABEL,
     "person_part": _SEG_PERSON_PART_ID2LABEL,
     "instance": _SEG_INSTANCE_ID2LABEL,
 }
@@ -88,6 +94,7 @@ class VOCDataProvider(SegmentationDataProvider):
             "Layout",
             "Main",
             "SegmentationClass",
+            "SegmentationClassAug",
             "SegmentationObject",
             "SegmentationPersonPart",
         ],
@@ -102,6 +109,8 @@ class VOCDataProvider(SegmentationDataProvider):
         urls = _URLS[2012]
         if task == "SegmentationPersonPart":
             urls.update(_PERSON_PART_URL)
+        # elif task == "SegmentationClassAug": # TODO: dropbox requires authentication
+        #     urls.update(_SBD_URL)
         super().__init__(urls=urls, root=root, labels_format=labels_format)
 
     def move_to_raw_root(self):
@@ -120,7 +129,10 @@ class VOCDataProvider(SegmentationDataProvider):
             val_ids = [_id.split(" ")[0] for _id in val_ids]
             train_ids = sorted(list(set(train_ids)))
             val_ids = sorted(list(set(val_ids)))
-        return {"train": train_ids, "val": val_ids}
+        split_ids = {"train": train_ids, "val": val_ids}
+        if self.task == "SegmentationClassAug":
+            split_ids["trainaug"] = read_text_file(f"{task_dir}/trainaug.txt")
+        return split_ids
 
     def arrange_files(self):
         for split, ids in self.split_ids.items():
@@ -162,13 +174,15 @@ class VOCSegmentationDataProvider(VOCDataProvider):
     def __init__(
         self,
         root: str,
-        mode: Literal["semantic", "instance", "person_part"] = "semantic",
+        mode: Literal["semantic", "semantic_aug", "instance", "person_part"] = "semantic",
         labels_format: Literal["yolo"] | None = "yolo",
     ):
         self.mode = mode
         self._set_id2class(id2class=_SEG_ID2LABEL[mode])
         if mode == "semantic":
             mask_dirname = "SegmentationClass"
+        elif mode == "semantic_aug":
+            mask_dirname = "SegmentationClassAug"
         elif mode == "instance":
             mask_dirname = "SegmentationObject"
         elif mode == "person_part":
@@ -228,14 +242,14 @@ class VOCPersonPartSegmentationDataProvider(VOCSegmentationDataProvider):
             if zip_filepath.endswith("trainval_2012.tar") and path_exists(
                 f"{self.raw_root}/Annotations"
             ):
-                log.info("VOC trainval 2012 already downloaded. Skipping")
+                log.info("VOC trainval 2012 already unzipped. Skipping")
                 is_voc_present = True
                 continue
             elif zip_filepath.endswith("person_part.zip") and path_exists(
                 f"{self.raw_root}/ImageSets/SegmentationPersonPart"
             ):
                 is_personpart_present = True
-                log.info("PersonPart dataset already downloaded. Skipping")
+                log.info("PersonPart dataset already unzipped. Skipping")
                 continue
             else:
                 unzip(zip_filepath, self.root, remove)
@@ -256,6 +270,68 @@ class VOCPersonPartSegmentationDataProvider(VOCSegmentationDataProvider):
         masks_dst_dir = f"{self.raw_root}/SegmentationPersonPart"
         move(masks_src_dir, masks_dst_dir)
         remove_directory(f"{self.root}/pascal_person_part")
+
+
+class VOCSemanticSegmentationAugDataProvider(VOCSegmentationDataProvider):
+    def __init__(self, root: str, labels_format: Literal["yolo"] | None = None):
+        super().__init__(root=root, mode="semantic_aug", labels_format=labels_format)
+
+    def download(self):
+        download_file(_TRAINAUG_IDS_URL, f"{self.root}/trainaug.txt")
+        return super().download()
+
+    def unzip(self, remove: bool = False):
+        Path(self.raw_root).mkdir(parents=True, exist_ok=True)
+        is_voc_present = False
+        is_sbd_present = False
+        if not path_exists(f"{self.root}/SegmentationClassAug.zip"):
+            msg = (
+                "No SegmentationClassAug.zip file in the root directory."
+                + f"Download it from {_SBD_URL['trainaug']}, place it in the root and try again."
+            )
+            log.error(msg)
+            raise FileNotFoundError(msg)
+
+        self.zip_filepaths.append(f"{self.root}/SegmentationClassAug.zip")
+        for zip_filepath in self.zip_filepaths:
+            if zip_filepath.endswith("trainval_2012.tar") and path_exists(
+                f"{self.raw_root}/Annotations"
+            ):
+                log.info("VOC trainval 2012 already unzipped. Skipping")
+                is_voc_present = True
+                continue
+            elif zip_filepath.endswith("SegmentationClassAug.zip") and path_exists(
+                f"{self.raw_root}/ImageSets/SegmentationClassAug"
+            ):
+                is_sbd_present = True
+                log.info("SegmentationClassAug dataset already unzipped. Skipping")
+                continue
+            elif zip_filepath.endswith(("trainval_2012.tar", "SegmentationClassAug.zip")):
+                unzip(zip_filepath, self.root, remove)
+        self.move_to_raw_root(is_voc_present, is_sbd_present)
+        if remove:
+            self.zip_filepaths.clear()
+
+    def move_to_raw_root(self, is_voc_present: bool, is_sbd_present: bool):
+        if not is_voc_present:
+            super().move_to_raw_root()
+        if is_sbd_present:
+            return
+        masks_src_dir = f"{self.root}/SegmentationClassAug"
+        masks_dst_dir = f"{self.raw_root}/SegmentationClassAug"
+        move(masks_src_dir, masks_dst_dir)
+        img_sets_dir = f"{self.raw_root}/ImageSets"
+        Path(f"{img_sets_dir}/SegmentationClassAug").mkdir(parents=True, exist_ok=True)
+        move(f"{self.root}/trainaug.txt", f"{img_sets_dir}/SegmentationClassAug/trainaug.txt")
+        src_ids_files = [
+            f"{img_sets_dir}/Segmentation/train.txt",
+            f"{img_sets_dir}/Segmentation/val.txt",
+        ]
+        dst_ids_files = [
+            f"{img_sets_dir}/SegmentationClassAug/train.txt",
+            f"{img_sets_dir}/SegmentationClassAug/val.txt",
+        ]
+        copy_files(src_ids_files, dst_ids_files)
 
 
 if __name__ == "__main__":
