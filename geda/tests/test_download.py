@@ -23,5 +23,5 @@ def test_download():
 
 if __name__ == "__main__":
     # test_download()
-    # _download("NYUDv2")
-    _download("VOC_SemanticSegmentationAug")
+    _download("DUTS")
+    # _download("VOC_SemanticSegmentationAug")

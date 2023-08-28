@@ -4,6 +4,7 @@ from geda.utils.files import (
     copy_files,
     create_dir,
 )
+from geda.utils.images import save_gray_array_as_color_png
 from geda.parsers.yolo import parse_segmentation_masks_to_yolo
 from pathlib import Path
 import glob
@@ -26,6 +27,8 @@ _URLS = {
 split2dirname = {"train": "DUTS-TR", "test": "DUTS-TE"}
 
 _ID2CLASS = {0: "background", 1: "salient"}
+_PALETTE = [(0, 0, 0), (255, 255, 255)]  # black for background, white for salient
+
 SPLITS = ["train", "test"]
 
 
@@ -84,8 +87,10 @@ class DUTSDataProvider(SegmentationDataProvider):
                 log.info(f"Applying binarization (threshold = 128) for {split} masks")
                 for mask_filepath in tqdm(dst_masks_filepaths, desc="Binarization"):
                     mask = np.array(Image.open(mask_filepath).convert("L"))
-                    binary_mask = ((mask > 128) * 255).astype(np.uint8)
-                    Image.fromarray(binary_mask).save(mask_filepath)
+                    binary_mask = ((mask > 128) * 1).astype(np.uint8)
+                    save_gray_array_as_color_png(
+                        binary_mask, palette=_PALETTE, filename=mask_filepath
+                    )
 
     def create_labels(self):
         masks_filepaths = sorted(glob.glob(f"{self.task_root}/masks/*/*"))

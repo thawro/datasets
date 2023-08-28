@@ -10,6 +10,7 @@ from geda.utils.files import (
     path_exists,
     download_file,
 )
+from geda.utils.colors import color_map
 from geda.parsers.yolo import parse_segmentation_masks_to_yolo
 from typing import Literal
 from pathlib import Path
@@ -81,6 +82,8 @@ _SEG_ID2LABEL = {
     "person_part": _SEG_PERSON_PART_ID2LABEL,
     "instance": _SEG_INSTANCE_ID2LABEL,
 }
+
+_PALETTE = color_map(256)
 
 
 class VOCDataProvider(SegmentationDataProvider):
@@ -332,6 +335,7 @@ class VOCSemanticSegmentationAugDataProvider(VOCSegmentationDataProvider):
             f"{img_sets_dir}/SegmentationClassAug/val.txt",
         ]
         copy_files(src_ids_files, dst_ids_files)
+        # TODO: Add png colorization
 
 
 if __name__ == "__main__":
