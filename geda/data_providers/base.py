@@ -6,10 +6,10 @@ from geda.utils.files import (
     save_yaml,
 )
 from geda.utils.pylogger import get_pylogger
+from geda.utils.images import load_img_to_array
 from abc import abstractmethod
 from pathlib import Path
 import glob
-from PIL import Image
 import numpy as np
 from tqdm.auto import tqdm
 from functools import cached_property
@@ -88,9 +88,15 @@ class DataProvider:
     def arrange_files(self):
         raise NotImplementedError()
 
-    @abstractmethod
-    def _get_filepaths(self):
-        raise NotImplementedError()
+    def _get_filepaths(self, dirnames: list[str]):
+        filepaths = {}
+        for dirname in dirnames:
+            splits_paths = {}
+            for split in self.split_ids:
+                paths = glob.glob(f"{self.task_root}/{dirname}/{split}/*")
+                splits_paths[split] = sorted(paths)
+            filepaths[dirname] = splits_paths
+        return filepaths
 
     @abstractmethod
     def create_labels(self):
@@ -105,22 +111,7 @@ class SegmentationDataProvider(DataProvider):
         self.labels_format = labels_format
 
     def _get_filepaths(self, dirnames: list[str] = ["masks", "images", "labels"]):
-        filepaths = {}
-        for dirname in dirnames:
-            splits_paths = {}
-            for split in self.split_ids:
-                paths = glob.glob(f"{self.task_root}/{dirname}/{split}/*")
-                splits_paths[split] = sorted(paths)
-            filepaths[dirname] = splits_paths
-        return filepaths
-
-    def _load_img_to_array(self, filepath: str) -> np.ndarray:
-        if filepath.endswith((".jpg", "png", "jpeg")):
-            return np.array(Image.open(filepath))
-        elif filepath.endswith(".npy"):
-            return np.load(filepath)
-        else:
-            raise Exception("Wrong file extension. .jpg, .png, .jpeg and .npy are supported.")
+        super()._get_filepaths(dirnames)
 
     def _get_class_counts(self, masks_dirname: str = "masks") -> dict[str, dict[str, int]]:
         class_counts_path = f"{self.task_root}/class_counts.yaml"
@@ -132,7 +123,7 @@ class SegmentationDataProvider(DataProvider):
             masks_filepaths = self.filepaths[masks_dirname][split]
             classes_counts = {}
             for path in tqdm(masks_filepaths, desc=f"Counting class pixels for {split} split"):
-                mask = self._load_img_to_array(path)
+                mask = load_img_to_array(path)
                 classes, counts = np.unique(mask, return_counts=True)
                 for _class, count in zip(classes, counts):
                     if _class not in classes_counts:
@@ -184,3 +175,8 @@ class SegmentationDataProvider(DataProvider):
         self.save_id2class()
         self._get_class_counts()
         self._get_class_frequencies()
+
+
+class ClassificationDataProvider(DataProvider):
+    def _get_filepaths(self, dirnames: list[str] = ["images", "labels"]):
+        super()._get_filepaths(dirnames)

@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 import zipfile
 import yaml
-
+import gzip
 
 log = get_pylogger(__name__)
 
@@ -50,6 +50,12 @@ def unzip_zip(file_path, dst_path):
         zip_ref.extractall(dst_path)
 
 
+def unzip_gz(filepath):
+    with gzip.open(filepath, "rb") as f_in:
+        with open(filepath.replace(".gz", ""), "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+
 def unzip(file_path, dst_path, remove=False):
     log.info(f"Unzipping {file_path} to {dst_path}.")
     ext = file_path.split(".")[-1]
@@ -57,6 +63,8 @@ def unzip(file_path, dst_path, remove=False):
         unzip_tar(file_path, dst_path)
     elif ext == "zip":
         unzip_zip(file_path, dst_path)
+    elif ext == "gz":
+        unzip_gz(file_path)
     if remove:
         os.remove(file_path)
         log.info(f"Removed {file_path}")
