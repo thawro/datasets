@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geda"
-version = "0.1.10"
+version = "0.1.11"
 description = ""
 authors = ["thawro <tomaszhawro.kontakt@gmail.com>"]
 homepage = "https://github.com/thawro/geda"

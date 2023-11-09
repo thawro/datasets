@@ -61,7 +61,7 @@ class PointAnnotation:
     x: int
     y: int
     id: int
-    is_visible: bool
+    visibility: int
 
     @property
     def xy(self) -> tuple[int, int]:
@@ -74,6 +74,7 @@ class PointAnnotation:
 
 @dataclass
 class PoseAnnotation:
+    bbox: tuple[int, int, int, int]
     scale: float
     objpos_xy: tuple[int, int]
     head_xyxy: tuple[int, int, int, int]
@@ -81,6 +82,7 @@ class PoseAnnotation:
 
     @classmethod
     def from_dict(cls, annot: dict):
+        bbox = annot["bbox"]
         scale = annot["scale"]
         objpos_xy = annot["objpos_xy"]
         head_xyxy = annot["head_xyxy"]
@@ -88,7 +90,7 @@ class PoseAnnotation:
             point["id"]: PointAnnotation.from_dict(point)
             for point in annot["keypoints"]
         }
-        return cls(scale, objpos_xy, head_xyxy, keypoints)
+        return cls(bbox, scale, objpos_xy, head_xyxy, keypoints)
 
 
 @dataclass
@@ -113,7 +115,7 @@ class Annotation:
         for pose in self.poses:
             keypoints = pose.keypoints
             for _, kp in keypoints.items():
-                color = (0, 128, 255) if kp.is_visible else (128, 128, 128)
+                color = (0, 128, 255) if kp.visibility == 2 else (128, 128, 128)
                 cv2.circle(image, kp.xy, 3, color, -1)
             for id_1, id_2 in LIMBS:
                 if id_1 not in keypoints or id_2 not in keypoints:
@@ -127,11 +129,13 @@ class Annotation:
 def parse_mpii_annotation(annot: np.ndarray) -> dict:
     """
     returns annot dict in form
+    visibility: 0 - not labeled, 1 - labeled but not visible, 2 - labeled and visible
     {
         'filename': string,
         'is_valid': bool, # False when there are no joint annotations
-        'annorect': [
+        'objects': [
             {
+                'bbox': [int, int, int, int]
                 'scale': float,
                 'objpos_xy': [int, int],
                 'head_xyxy': [int, int, int, int],
@@ -140,7 +144,7 @@ def parse_mpii_annotation(annot: np.ndarray) -> dict:
                         'x': int,
                         'y': int,
                         'id': int,
-                        'is_visible': bool
+                        'visibility': int
                     },
                     ...
                 ]
@@ -177,21 +181,44 @@ def parse_mpii_annotation(annot: np.ndarray) -> dict:
 
         annopoints = annorect["annopoints"]["point"][0, 0][0]
 
-        joints_dicts = []
+        # bbox is set as keypoints bounding rect
+        xmin, xmax = 1e5, 0
+        ymin, ymax = 1e5, 0
+        joints_dicts = {}
         for point in annopoints:
-            is_visible = (
+            visibility = int(
                 "is_visible" in point.dtype.names
                 and [1] in point["is_visible"].tolist()
             )
-            joint_dict = {
-                "x": int(point["x"][0, 0].item()),
-                "y": int(point["y"][0, 0].item()),
-                "id": point["id"][0, 0].item(),
-                "is_visible": is_visible,
-            }
-            joints_dicts.append(joint_dict)
+            _id = point["id"][0, 0].item()
+            x = int(point["x"][0, 0].item())
+            y = int(point["y"][0, 0].item())
+            if x <= xmin:
+                xmin = x
+            if x >= xmax:
+                xmax = x
+            if y <= ymin:
+                ymin = y
+            if y >= ymax:
+                ymax = y
 
-        person_dict["keypoints"] = joints_dicts
+            joint_dict = {
+                "x": x,
+                "y": y,
+                "id": _id,
+                "visibility": visibility,
+            }
+            joints_dicts[_id] = joint_dict
+        for _id in range(len(LABELS)):
+            if _id not in joints_dicts:
+                # filling it the same was as in COCO
+                joints_dicts[_id] = {"x": 0, "y": 0, "id": _id, "visibility": 0}
+        bbox_xc = int((xmax - xmin) // 2 + xmin)
+        bbox_yc = int((ymax - ymin) // 2 + ymin)
+        bbox_w = int(xmax - xmin)
+        bbox_h = int(ymax - ymin)
+        person_dict["bbox"] = [bbox_xc, bbox_yc, bbox_w, bbox_h]
+        person_dict["keypoints"] = list(joints_dicts.values())
         person_dicts.append(person_dict)
     annot_dict["objects"] = person_dicts
     return annot_dict
