@@ -32,9 +32,15 @@ class TqdmUpTo(tqdm):
 def download_file(url, filepath):
     log.info(f"Downloading {url} to {filepath}")
     with TqdmUpTo(
-        unit="B", unit_scale=True, unit_divisor=1024, miniters=1, desc=url.split("/")[-1]
+        unit="B",
+        unit_scale=True,
+        unit_divisor=1024,
+        miniters=1,
+        desc=url.split("/")[-1],
     ) as t:  # all optional kwargs
-        urllib.request.urlretrieve(url, filename=filepath, reporthook=t.update_to, data=None)
+        urllib.request.urlretrieve(
+            url, filename=filepath, reporthook=t.update_to, data=None
+        )
         t.total = t.n
     log.info("Download finished")
 
@@ -75,10 +81,12 @@ def save_txt_to_file(txt, filename):
         file.write(txt)
 
 
-def read_text_file(filename):
+def read_txt_file(filename) -> list[str]:
     with open(filename, "r") as file:
         lines = file.readlines()
-        lines = [line.strip() for line in lines]  # Optional: Remove leading/trailing whitespace
+        lines = [
+            line.strip() for line in lines
+        ]  # Optional: Remove leading/trailing whitespace
     return lines
 
 
@@ -88,14 +96,15 @@ def add_prefix_to_files(directory, prefix, ext=".png"):
     for filename in os.listdir(directory):
         if os.path.isfile(os.path.join(directory, filename)) and filename.endswith(ext):
             new_filename = prefix + filename
-            os.rename(os.path.join(directory, filename), os.path.join(directory, new_filename))
+            os.rename(
+                os.path.join(directory, filename), os.path.join(directory, new_filename)
+            )
     log.info("Prefix addition finished")
 
 
-def move(source, destination, verbose: bool = False):
+def move(source, destination):
     shutil.move(source, destination)
-    if verbose:
-        log.info(f"Moved {source} to {destination}")
+    log.info(f"Moved {source} to {destination}")
 
 
 def copy_directory(source_dir, destination_dir):
@@ -119,14 +128,19 @@ def copy_all_files(source_dir, destination_dir, ext=".png"):
             source = source_dir / filename
             destination = destination_dir / filename
             shutil.copy2(source, destination)
-    log.info(f"Copied all {ext} files ({len(filenames)}) from {source_dir} to {destination_dir}")
+    log.info(
+        f"Copied all {ext} files ({len(filenames)}) from {source_dir} to {destination_dir}"
+    )
 
 
 def copy_files(source_filepaths, dest_filepaths):
     for source_filepath, dest_filepath in tqdm(
         zip(source_filepaths, dest_filepaths), desc="Copying files"
     ):
-        shutil.copy2(source_filepath, dest_filepath)
+        try:
+            shutil.copy2(source_filepath, dest_filepath)
+        except FileNotFoundError as e:
+            log.warn(f"{source_filepath} not found")
     log.info(f"Copied files ({len(source_filepaths)})")
 
 

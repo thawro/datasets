@@ -3,7 +3,7 @@ from geda.data_providers.base import SegmentationDataProvider
 from geda.utils.files import (
     move,
     remove_directory,
-    read_text_file,
+    read_txt_file,
     copy_files,
     create_dir,
     unzip,
@@ -125,8 +125,8 @@ class VOCDataProvider(SegmentationDataProvider):
     def _get_split_ids(self):
         task_dir = f"{self.raw_root}/ImageSets/{self.task}"
         id_file_suffix = "_id" if self.task == "SegmentationPersonPart" else ""
-        train_ids = read_text_file(f"{task_dir}/train{id_file_suffix}.txt")
-        val_ids = read_text_file(f"{task_dir}/val{id_file_suffix}.txt")
+        train_ids = read_txt_file(f"{task_dir}/train{id_file_suffix}.txt")
+        val_ids = read_txt_file(f"{task_dir}/val{id_file_suffix}.txt")
         if self.task == "Layout":
             train_ids = [_id.split(" ")[0] for _id in train_ids]
             val_ids = [_id.split(" ")[0] for _id in val_ids]
@@ -134,7 +134,7 @@ class VOCDataProvider(SegmentationDataProvider):
             val_ids = sorted(list(set(val_ids)))
         split_ids = {"train": train_ids, "val": val_ids}
         if self.task == "SegmentationClassAug":
-            split_ids["trainaug"] = read_text_file(f"{task_dir}/trainaug.txt")
+            split_ids["trainaug"] = read_txt_file(f"{task_dir}/trainaug.txt")
         return split_ids
 
     def arrange_files(self):

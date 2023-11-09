@@ -1,10 +1,4 @@
-from geda.utils.files import (
-    download_file,
-    unzip,
-    path_exists,
-    load_yaml,
-    save_yaml,
-)
+from geda.utils.files import download_file, unzip, path_exists, load_yaml, save_yaml
 from geda.utils.pylogger import get_pylogger
 from geda.utils.images import load_img_to_array
 from abc import abstractmethod
@@ -29,11 +23,13 @@ class DataProvider:
         Path(self.root).mkdir(parents=True, exist_ok=True)
         self.raw_root = f"{root}/raw"
 
-    def get_data(self):
+    def get_data(self, remove_zip: bool = False):
         if not self.check_if_present():
             self.zip_filepaths = self.download()  # TODO
-            self.unzip()
+            self.unzip(remove=remove_zip)
+            log.info("Loading splits ids")
             self.split_ids = self._get_split_ids()
+            log.info("Arranging files")
             self.arrange_files()
             self.create_labels()
             self.filepaths = self._get_filepaths()
@@ -45,7 +41,7 @@ class DataProvider:
     def download(self):
         zip_filepaths = []
         for name, url in self.urls.items():
-            ext = url.split(".")[-1]
+            ext = url.split("/")[-1].split(".")[1]
             zip_filepath = f"{self.root}/{name}.{ext}"
             if ext in ["zip", "tar", "gz"]:
                 zip_filepaths.append(zip_filepath)
@@ -88,7 +84,7 @@ class DataProvider:
     def arrange_files(self):
         raise NotImplementedError()
 
-    def _get_filepaths(self, dirnames: list[str]):
+    def _get_filepaths(self, dirnames: list[str] = []):
         filepaths = {}
         for dirname in dirnames:
             splits_paths = {}
@@ -105,7 +101,10 @@ class DataProvider:
 
 class SegmentationDataProvider(DataProvider):
     def __init__(
-        self, urls: dict[str, str], root: str, labels_format: Literal["yolo"] | None = "yolo"
+        self,
+        urls: dict[str, str],
+        root: str,
+        labels_format: Literal["yolo"] | None = "yolo",
     ):
         super().__init__(urls, root)
         self.labels_format = labels_format
@@ -113,7 +112,9 @@ class SegmentationDataProvider(DataProvider):
     def _get_filepaths(self, dirnames: list[str] = ["masks", "images", "labels"]):
         super()._get_filepaths(dirnames)
 
-    def _get_class_counts(self, masks_dirname: str = "masks") -> dict[str, dict[str, int]]:
+    def _get_class_counts(
+        self, masks_dirname: str = "masks"
+    ) -> dict[str, dict[str, int]]:
         class_counts_path = f"{self.task_root}/class_counts.yaml"
         if path_exists(class_counts_path):
             log.info(f"{class_counts_path} is present. Loading counts from that file.")
@@ -122,7 +123,9 @@ class SegmentationDataProvider(DataProvider):
         for split in self.splits:
             masks_filepaths = self.filepaths[masks_dirname][split]
             classes_counts = {}
-            for path in tqdm(masks_filepaths, desc=f"Counting class pixels for {split} split"):
+            for path in tqdm(
+                masks_filepaths, desc=f"Counting class pixels for {split} split"
+            ):
                 mask = load_img_to_array(path)
                 classes, counts = np.unique(mask, return_counts=True)
                 for _class, count in zip(classes, counts):
@@ -137,7 +140,9 @@ class SegmentationDataProvider(DataProvider):
     def _get_class_frequencies(self) -> dict[str, dict[str, float]]:
         class_frequencies_path = f"{self.task_root}/class_frequencies.yaml"
         if path_exists(class_frequencies_path):
-            log.info(f"{class_frequencies_path} is present. Loading frequencies from that file.")
+            log.info(
+                f"{class_frequencies_path} is present. Loading frequencies from that file."
+            )
             return load_yaml(class_frequencies_path)
         splits_cls_freqs = {}
         for split in self.splits:
@@ -179,4 +184,4 @@ class SegmentationDataProvider(DataProvider):
 
 class ClassificationDataProvider(DataProvider):
     def _get_filepaths(self, dirnames: list[str] = ["images", "labels"]):
-        super()._get_filepaths(dirnames)
+        return super()._get_filepaths(dirnames)
