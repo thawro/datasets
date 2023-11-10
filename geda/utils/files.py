@@ -144,6 +144,12 @@ def copy_files(source_filepaths, dest_filepaths):
     log.info(f"Copied files ({len(source_filepaths)})")
 
 
+def move_many(sources: list, destinations: list):
+    log.info(f"Moving {len(sources)} files/directories {len(destinations)}")
+    for src, dst in zip(sources, destinations):
+        shutil.move(src, dst)
+
+
 def create_dir(path: Path, return_str: bool = True):
     path.mkdir(parents=True, exist_ok=True)
     if return_str:

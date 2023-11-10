@@ -10,6 +10,7 @@ from typing import Optional
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+from tqdm.auto import tqdm
 
 log = get_pylogger(__name__)
 
@@ -96,6 +97,8 @@ class PoseAnnotation:
 @dataclass
 class Annotation:
     filename: str
+    height: int
+    width: int
     is_valid: bool
     poses: Optional[list[PoseAnnotation]] | None = None
 
@@ -103,10 +106,13 @@ class Annotation:
     def from_dict(cls, annot: dict):
         filename = annot["filename"]
         is_valid = annot["is_valid"]
+        height = annot["height"]
+        width = annot["width"]
+
         if not is_valid:
-            return cls(filename, is_valid)
+            return cls(filename, height, width, is_valid)
         poses = [PoseAnnotation.from_dict(obj_rect) for obj_rect in annot["objects"]]
-        return cls(filename, is_valid, poses)
+        return cls(filename, height, width, is_valid, poses)
 
     def plot(self):
         if not self.is_valid or self.poses is None:
@@ -126,12 +132,14 @@ class Annotation:
         plt.imshow(image)
 
 
-def parse_mpii_annotation(annot: np.ndarray) -> dict:
+def parse_mpii_annotation(annot: np.ndarray, images_dir: str) -> dict:
     """
     returns annot dict in form
     visibility: 0 - not labeled, 1 - labeled but not visible, 2 - labeled and visible
     {
         'filename': string,
+        'height': int, # TODO
+        'width': int, # TODO
         'is_valid': bool, # False when there are no joint annotations
         'objects': [
             {
@@ -163,10 +171,11 @@ def parse_mpii_annotation(annot: np.ndarray) -> dict:
         is_valid = (
             annorects.dtype.names is not None and "annopoints" in annorects.dtype.names
         )
-
     annot_dict = {"filename": filename, "is_valid": is_valid}
     if not is_valid:
         return annot_dict
+    image = Image.open(f"{images_dir}/{filename}")
+    annot_dict.update({"height": image.height, "width": image.width})
 
     person_dicts = []
     for ridx, annorect in enumerate(annorects):
@@ -182,8 +191,6 @@ def parse_mpii_annotation(annot: np.ndarray) -> dict:
         annopoints = annorect["annopoints"]["point"][0, 0][0]
 
         # bbox is set as keypoints bounding rect
-        xmin, xmax = 1e5, 0
-        ymin, ymax = 1e5, 0
         joints_dicts = {}
         for point in annopoints:
             visibility = int(
@@ -191,32 +198,30 @@ def parse_mpii_annotation(annot: np.ndarray) -> dict:
                 and [1] in point["is_visible"].tolist()
             )
             _id = point["id"][0, 0].item()
-            x = int(point["x"][0, 0].item())
-            y = int(point["y"][0, 0].item())
-            if x <= xmin:
-                xmin = x
-            if x >= xmax:
-                xmax = x
-            if y <= ymin:
-                ymin = y
-            if y >= ymax:
-                ymax = y
-
             joint_dict = {
-                "x": x,
-                "y": y,
+                "x": int(point["x"][0, 0].item()),
+                "y": int(point["y"][0, 0].item()),
                 "id": _id,
                 "visibility": visibility,
             }
             joints_dicts[_id] = joint_dict
-        for _id in range(len(LABELS)):
-            if _id not in joints_dicts:
-                # filling it the same was as in COCO
-                joints_dicts[_id] = {"x": 0, "y": 0, "id": _id, "visibility": 0}
+        x_vals = [joint["x"] for joint in joints_dicts.values()]
+        y_vals = [joint["y"] for joint in joints_dicts.values()]
+        xmax = max(x_vals)
+        ymax = max(y_vals)
+        xmin = min(x_vals)
+        ymin = min(y_vals)
+
         bbox_xc = int((xmax - xmin) // 2 + xmin)
         bbox_yc = int((ymax - ymin) // 2 + ymin)
         bbox_w = int(xmax - xmin)
         bbox_h = int(ymax - ymin)
+
+        for _id in range(len(LABELS)):
+            if _id not in joints_dicts:
+                # filling it the same was as in COCO
+                joints_dicts[_id] = {"x": 0, "y": 0, "id": _id, "visibility": 0}
+
         person_dict["bbox"] = [bbox_xc, bbox_yc, bbox_w, bbox_h]
         person_dict["keypoints"] = list(joints_dicts.values())
         person_dicts.append(person_dict)
@@ -249,7 +254,7 @@ class MPIIDataProvider(DataProvider):
         annolist = release["annolist"][0]
         # train/val/test splits are determined on annotations validity, not on "img_train" field
         is_train = release["img_train"][0]  # not used
-        annots = [parse_mpii_annotation(a) for a in annolist]
+        annots = [parse_mpii_annotation(a, f"{self.raw_root}/images") for a in annolist]
         self.annots = annots
 
     def _get_split_ids(self):
@@ -287,11 +292,11 @@ class MPIIDataProvider(DataProvider):
             src_imgs_filepaths = [f"{src_imgs_path}/{fname}" for fname in filenames]
             dst_imgs_filepaths = [f"{dst_imgs_path}/{fname}" for fname in filenames]
 
-            log.info(f"Moving {split} images from {src_imgs_path} to {dst_imgs_path}")
+            log.info(f"Copying {split} images from {src_imgs_path} to {dst_imgs_path}")
             copy_files(src_imgs_filepaths, dst_imgs_filepaths)
 
             log.info(f"Saving {split} annotations as .yaml files in {dst_annots_path}")
-            for annot in split_annots:
+            for annot in tqdm(split_annots, desc=split):
                 _id = annot["filename"].replace(".jpg", "")
                 save_yaml(annot, f"{dst_annots_path}/{_id}.yaml")
 
