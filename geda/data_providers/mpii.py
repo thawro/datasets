@@ -223,7 +223,8 @@ def parse_mpii_annotation(annot: np.ndarray, images_dir: str) -> dict:
                 joints_dicts[_id] = {"x": 0, "y": 0, "id": _id, "visibility": 0}
 
         person_dict["bbox"] = [bbox_xc, bbox_yc, bbox_w, bbox_h]
-        person_dict["keypoints"] = list(joints_dicts.values())
+        keypoints = sorted(list(joints_dicts.values()), key=lambda kp: kp["id"])
+        person_dict["keypoints"] = keypoints
         person_dicts.append(person_dict)
     annot_dict["objects"] = person_dicts
     return annot_dict

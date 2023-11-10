@@ -202,7 +202,12 @@ class COCOKeypointsDataProvider(DataProvider):
         for filepath in test_filepaths:
             filename = filepath.split("/")[-1]
             _id = filename.split(".")[0]
-            test_id2annots[_id] = filename
+            image = Image.open(filepath)
+            test_id2annots[_id] = {
+                "filename": filename,
+                "height": image.height,
+                "width": image.width,
+            }
         annot_splits["test"] = test_id2annots
         self.annots = annot_splits
 

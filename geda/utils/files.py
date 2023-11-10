@@ -134,20 +134,27 @@ def copy_all_files(source_dir, destination_dir, ext=".png"):
 
 
 def copy_files(source_filepaths, dest_filepaths):
+    n_files = len(source_filepaths)
     for source_filepath, dest_filepath in tqdm(
-        zip(source_filepaths, dest_filepaths), desc="Copying files"
+        zip(source_filepaths, dest_filepaths),
+        desc="Copying files",
+        total=n_files,
     ):
         try:
             shutil.copy2(source_filepath, dest_filepath)
         except FileNotFoundError as e:
             log.warn(f"{source_filepath} not found")
-    log.info(f"Copied files ({len(source_filepaths)})")
+    log.info(f"Copied {n_files} files")
 
 
 def move_many(sources: list, destinations: list):
-    log.info(f"Moving {len(sources)} files/directories {len(destinations)}")
-    for src, dst in zip(sources, destinations):
+    n_files = len(sources)
+    log.info(f"Moving {n_files} files/directories")
+    for src, dst in tqdm(
+        zip(sources, destinations), desc="Moving files", total=n_files
+    ):
         shutil.move(src, dst)
+    log.info(f"Copied {n_files} files")
 
 
 def create_dir(path: Path, return_str: bool = True):
