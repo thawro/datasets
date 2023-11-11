@@ -1,8 +1,8 @@
 from typing import Literal
-from geda import data_providers
 import geda.data_providers as gdp
 
 DATA_PROVIDERS = {
+    "MNIST": gdp.mnist.MNISTDataProvider,
     "DUTS": gdp.duts.DUTSDataProvider,
     "NYUDv2": gdp.nyud.NYUDv2DataProvider,
     "VOC_InstanceSegmentation": gdp.voc.VOCInstanceSegmentationDataProvider,
@@ -12,9 +12,12 @@ DATA_PROVIDERS = {
     "VOC_Main": gdp.voc.VOCMainDataProvider,
     "VOC_Action": gdp.voc.VOCActionDataProvider,
     "VOC_Layout": gdp.voc.VOCLayoutDataProvider,
+    "MPII": gdp.mpii.MPIIDataProvider,
+    "COCO_Keypoints": gdp.coco.COCOKeypointsDataProvider,
 }
 
 DATA_PROVIDERS_NAMES = Literal[
+    "MNIST",
     "DUTS",
     "NYUDv2",
     "VOC_InstanceSegmentation",
@@ -24,6 +27,8 @@ DATA_PROVIDERS_NAMES = Literal[
     "VOC_Main",
     "VOC_Action",
     "VOC_Layout",
+    "MPII",
+    "COCO_Keypoints",
 ]
 
 

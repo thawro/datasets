@@ -1,5 +1,5 @@
 from geda.data_providers.base import ClassificationDataProvider
-from geda.utils.files import move, copy_files, create_dir, save_txt_to_file
+from geda.utils.files import move, create_dir, save_txt_to_file
 from geda.utils.pylogger import get_pylogger
 from tqdm.auto import tqdm
 import numpy as np
@@ -60,7 +60,9 @@ class MNISTDataProvider(ClassificationDataProvider):
 
         for split, ids in self.split_ids.items():
             names = ["images", "labels"]
-            dst_paths = {name: create_dir(Path(self.task_root) / name / split) for name in names}
+            dst_paths = {
+                name: create_dir(Path(self.task_root) / name / split) for name in names
+            }
 
             images_ubyte_filepath = f"{self.raw_root}/{split}_images"
             labels_ubyte_filepath = f"{self.raw_root}/{split}_labels"

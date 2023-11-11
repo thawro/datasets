@@ -1,6 +1,6 @@
 # GeDa
 
-**GeDa** is a Python package that helps you to **Ge**t the **Da**ta for your project.
+**GeDa** is a Python package that helps you to **Ge**t the **Da**ta for your project easily.
 
 ## Installation
 
@@ -31,7 +31,9 @@ dataprovider.get_data()
 ```
 
 > The `get_data` function currently supported names:
-> `DUTS`, `NYUDv2`, `VOC_InstanceSegmentation`, `VOC_SemanticSegmentation`, `VOC_PersonPartSegmentation`, `VOC_Main`, `VOC_Action`, `VOC_Layout`
+> `MNIST`, `DUTS`, `NYUDv2`, `VOC_InstanceSegmentation`, `VOC_SemanticSegmentation`, 
+> `VOC_PersonPartSegmentation`, `VOC_Main`, `VOC_Action`, `VOC_Layout`,
+> `MPII`, `COCO_Keypoints`
 
 
 ## What it does
@@ -67,12 +69,21 @@ Resulting directory structure of the `get_data(name="VOC_SemanticSegmentation", 
 
 ## Currently supported datasets
 
+### Image classification
+
+* [MNIST](http://yann.lecun.com/exdb/mnist)
+
 ### Image Segmentation
 
 * [PASCAL VOC 2012](http://host.robots.ox.ac.uk/pascal/VOC)
 * [NYUDv2](https://cs.nyu.edu/~silberman/projects/indoor_scene_seg_sup.html)
 * [Person-Parts](http://liangchiehchen.com/projects/DeepLab.html)
 * [DUTS](http://saliencydetection.net/duts/)
+
+### Keypoints detection
+
+* [MPII](http://human-pose.mpi-inf.mpg.de)
+* [COCO](https://cocodataset.org)
 
 
 ## Contributing
