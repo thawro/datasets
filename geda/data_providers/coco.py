@@ -140,6 +140,7 @@ def parse_coco_keypoint_annot(annots: list[dict], info: dict) -> dict:
             "bbox": annot["bbox"],
             "iscrowd": annot["iscrowd"],
             "num_keypoints": annot["num_keypoints"],
+            "segmentation": annot["segmentation"],
         }
         kpts = annot["keypoints"]
         joint_dicts = []
