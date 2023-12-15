@@ -299,7 +299,7 @@ class MPIIDataProvider(DataProvider):
             log.info(f"Saving {split} annotations as .yaml files in {dst_annots_path}")
             yaml_paths = [
                 f'{dst_annots_path}/{annot["filename"].replace(".jpg", "")}.yaml'
-                for annot in split_annots.values()
+                for annot in split_annots
             ]
             save_yamls(split_annots, yaml_paths)
 
