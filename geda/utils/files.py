@@ -8,8 +8,11 @@ from pathlib import Path
 import zipfile
 import yaml
 import gzip
+from joblib import Parallel, delayed
 
 log = get_pylogger(__name__)
+
+_filepaths = list[str]
 
 
 class TqdmUpTo(tqdm):
@@ -29,7 +32,7 @@ class TqdmUpTo(tqdm):
         return self.update(b * bsize - self.n)  # also sets self.n = b * bsize
 
 
-def download_file(url, filepath):
+def download_file(url: str, filepath: str):
     log.info(f"Downloading {url} to {filepath}")
     with TqdmUpTo(
         unit="B",
@@ -45,44 +48,57 @@ def download_file(url, filepath):
     log.info("Download finished")
 
 
-def unzip_tar(file_path, dst_path, mode: str = "r"):
-    with tarfile.open(file_path, mode) as tar:
+def unzip_tar(filepath: str, dst_path, mode: str = "r"):
+    with tarfile.open(filepath, mode) as tar:
         tar.extractall(dst_path)
     log.info("Unzipping finished")
 
 
-def unzip_zip(file_path, dst_path):
-    with zipfile.ZipFile(file_path, "r") as zip_ref:
+def unzip_zip(filepath: str, dst_path: str):
+    with zipfile.ZipFile(filepath, "r") as zip_ref:
         zip_ref.extractall(dst_path)
 
 
-def unzip_gz(filepath):
+def unzip_gz(filepath: str):
     with gzip.open(filepath, "rb") as f_in:
         with open(filepath.replace(".gz", ""), "wb") as f_out:
             shutil.copyfileobj(f_in, f_out)
 
 
-def unzip(file_path, dst_path, remove=False):
-    log.info(f"Unzipping {file_path} to {dst_path}.")
-    ext = file_path.split(".")[-1]
+def unzip(filepath: str, dst_path: str, remove: bool = False):
+    log.info(f"Unzipping {filepath} to {dst_path}.")
+    ext = filepath.split(".")[-1]
     if ext == "tar":
-        unzip_tar(file_path, dst_path)
+        unzip_tar(filepath, dst_path)
     elif ext == "zip":
-        unzip_zip(file_path, dst_path)
+        unzip_zip(filepath, dst_path)
     elif ext == "gz":
-        unzip_gz(file_path)
+        unzip_gz(filepath)
     if remove:
-        os.remove(file_path)
-        log.info(f"Removed {file_path}")
+        os.remove(filepath)
+        log.info(f"Removed {filepath}")
 
 
-def save_txt_to_file(txt, filename):
+def unzip_many(filepaths: list[str], dst_paths: list[str] | str, remove: bool = False):
+    desc = "Unzipping files"
+    total = len(filepaths)
+    if isinstance(dst_paths, str):
+        dst_paths = [dst_paths] * total
+    Parallel(n_jobs=-1)(
+        delayed(unzip)(zip_filepath, dst_path, remove)
+        for zip_filepath, dst_path in tqdm(
+            zip(filepaths, dst_paths), desc=desc, total=total
+        )
+    )
+
+
+def save_txt_to_file(txt: str, filename: str):
     with open(filename, "w") as file:
         file.write(txt)
 
 
-def read_txt_file(filename) -> list[str]:
-    with open(filename, "r") as file:
+def read_txt_file(filepath: str) -> list[str]:
+    with open(filepath, "r") as file:
         lines = file.readlines()
         lines = [
             line.strip() for line in lines
@@ -90,7 +106,7 @@ def read_txt_file(filename) -> list[str]:
     return lines
 
 
-def add_prefix_to_files(directory, prefix, ext=".png"):
+def add_prefix_to_files(directory: str, prefix: str, ext: str = ".png"):
     log.info(f"Adding {prefix} prefix to all {ext} files in {directory} directory")
 
     for filename in os.listdir(directory):
@@ -102,59 +118,64 @@ def add_prefix_to_files(directory, prefix, ext=".png"):
     log.info("Prefix addition finished")
 
 
-def move(source, destination):
-    shutil.move(source, destination)
-    log.info(f"Moved {source} to {destination}")
+def move(src: str, dst: str):
+    shutil.move(src, dst)
+    log.info(f"Moved {src} to {dst}")
 
 
-def copy_directory(source_dir, destination_dir):
-    shutil.copytree(source_dir, destination_dir)
-    log.info(f"Copied {source_dir} to {destination_dir}")
+def move_many(sources: _filepaths, destinations: _filepaths):
+    total = len(sources)
+    desc = "Moving files"
+    log.info(f"Moving {total} files/directories")
+    Parallel(n_jobs=-1)(
+        delayed(shutil.move)(src, dst)
+        for src, dst in tqdm(zip(sources, destinations), desc=desc, total=total)
+    )
+    log.info(f"Moved {total} files")
 
 
-def remove_directory(dir_path):
-    shutil.rmtree(dir_path)
-    log.info(f"Removed {dir_path} directory")
+def copy_directory(src_dir: str, dst_dir: str):
+    shutil.copytree(src_dir, dst_dir)
+    log.info(f"Copied {src_dir} to {dst_dir}")
+
+
+def remove_directory(dirpath: str):
+    shutil.rmtree(dirpath)
+    log.info(f"Removed {dirpath} directory")
 
 
 def path_exists(path: str):
     return os.path.exists(path)
 
 
-def copy_all_files(source_dir, destination_dir, ext=".png"):
-    filenames = os.listdir(source_dir)
-    for filename in tqdm(filenames, desc="Copying files"):
+def copy_file(src: str, dst: str):
+    try:
+        shutil.copy2(src, dst)
+    except FileNotFoundError as e:
+        log.warn(f"{src} not found")
+
+
+def copy_all_files(src_dir: Path, dst_dir: Path, ext: str = ".png"):
+    def _copy(filename: str):
         if filename.lower().endswith(ext):
-            source = source_dir / filename
-            destination = destination_dir / filename
-            shutil.copy2(source, destination)
-    log.info(
-        f"Copied all {ext} files ({len(filenames)}) from {source_dir} to {destination_dir}"
+            source = str(src_dir / filename)
+            destination = str(dst_dir / filename)
+            copy_file(source, destination)
+
+    desc = "Copying files"
+    filenames = os.listdir(src_dir)
+    Parallel(n_jobs=-1)(delayed(_copy)(fname) for fname in tqdm(filenames, desc=desc))
+    log.info(f"Copied all {ext} files ({len(filenames)}) from {src_dir} to {dst_dir}")
+
+
+def copy_files(src_filepaths: _filepaths, dst_filepaths: _filepaths):
+    desc = "Copying files"
+    total = len(src_filepaths)
+    Parallel(n_jobs=-1)(
+        delayed(copy_file)(src, dst)
+        for src, dst in tqdm(zip(src_filepaths, dst_filepaths), desc=desc, total=total)
     )
-
-
-def copy_files(source_filepaths, dest_filepaths):
-    n_files = len(source_filepaths)
-    for source_filepath, dest_filepath in tqdm(
-        zip(source_filepaths, dest_filepaths),
-        desc="Copying files",
-        total=n_files,
-    ):
-        try:
-            shutil.copy2(source_filepath, dest_filepath)
-        except FileNotFoundError as e:
-            log.warn(f"{source_filepath} not found")
-    log.info(f"Copied {n_files} files")
-
-
-def move_many(sources: list, destinations: list):
-    n_files = len(sources)
-    log.info(f"Moving {n_files} files/directories")
-    for src, dst in tqdm(
-        zip(sources, destinations), desc="Moving files", total=n_files
-    ):
-        shutil.move(src, dst)
-    log.info(f"Copied {n_files} files")
+    log.info(f"Copied {total} files")
 
 
 def create_dir(path: Path, return_str: bool = True):
@@ -173,3 +194,12 @@ def load_yaml(path: Path | str) -> dict:
 def save_yaml(dct: dict, path: Path | str):
     with open(path, "w") as file:
         yaml.dump(dct, file)
+
+
+def save_yamls(dcts: list[dict], paths: list[str]):
+    desc = "Copying yaml files"
+    total = len(dcts)
+    Parallel(n_jobs=-1)(
+        delayed(save_yaml)(dct, path)
+        for dct, path in tqdm(zip(dcts, paths), desc=desc, total=total)
+    )

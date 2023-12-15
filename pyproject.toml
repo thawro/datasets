@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geda"
-version = "0.1.13"
+version = "0.1.15"
 description = ""
 authors = ["thawro <tomaszhawro.kontakt@gmail.com>"]
 homepage = "https://github.com/thawro/geda"
@@ -24,6 +24,7 @@ numpy = "^1.25.2"
 scipy = "^1.11.2"
 pypng = "^0.20220715.0"
 matplotlib = "^3.7.2"
+joblib = "^1.3.2"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -1,6 +1,6 @@
 from geda.data_providers.base import DataProvider
 
-from geda.utils.files import copy_files, save_yaml, create_dir, move
+from geda.utils.files import copy_files, save_yamls, create_dir, move
 from pathlib import Path
 from geda.utils.pylogger import get_pylogger
 import scipy
@@ -297,9 +297,11 @@ class MPIIDataProvider(DataProvider):
             copy_files(src_imgs_filepaths, dst_imgs_filepaths)
 
             log.info(f"Saving {split} annotations as .yaml files in {dst_annots_path}")
-            for annot in tqdm(split_annots, desc=split):
-                _id = annot["filename"].replace(".jpg", "")
-                save_yaml(annot, f"{dst_annots_path}/{_id}.yaml")
+            yaml_paths = [
+                f'{dst_annots_path}/{annot["filename"].replace(".jpg", "")}.yaml'
+                for annot in split_annots.values()
+            ]
+            save_yamls(split_annots, yaml_paths)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,10 @@
-from geda.utils.files import download_file, unzip, path_exists, load_yaml, save_yaml
+from geda.utils.files import (
+    download_file,
+    unzip_many,
+    path_exists,
+    load_yaml,
+    save_yaml,
+)
 from geda.utils.pylogger import get_pylogger
 from geda.utils.images import load_img_to_array
 from abc import abstractmethod
@@ -14,6 +20,7 @@ log = get_pylogger(__name__)
 
 class DataProvider:
     URL: str
+    zip_filepaths: list[str]
 
     def __init__(self, urls: dict[str, str], root: str):
         self.urls = urls
@@ -39,6 +46,9 @@ class DataProvider:
             self.filepaths = self._get_filepaths()
 
     def download(self):
+        if path_exists(self.raw_root):
+            log.info(f"{self.raw_root} is already present. Download canceled")
+            return
         zip_filepaths = []
         for name, url in self.urls.items():
             ext = url.split("/")[-1].split(".")[1]
@@ -56,8 +66,7 @@ class DataProvider:
             log.info(f"{self.raw_root} is already present. Unzip canceled")
             return
         Path(self.raw_root).mkdir(parents=True, exist_ok=True)
-        for zip_filepath in self.zip_filepaths:
-            unzip(zip_filepath, self.root, remove)
+        unzip_many(self.zip_filepaths, self.root, remove)
         self.move_to_raw_root()
         if remove:
             self.zip_filepaths.clear()

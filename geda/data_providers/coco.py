@@ -1,6 +1,7 @@
 from geda.data_providers.base import DataProvider
 
-from geda.utils.files import copy_files, save_yaml, create_dir, move
+from geda.utils.files import copy_files, save_yamls, create_dir, move_many
+
 from pathlib import Path
 from geda.utils.pylogger import get_pylogger
 from dataclasses import dataclass
@@ -165,8 +166,7 @@ class COCOKeypointsDataProvider(DataProvider):
         dirnames = ["train2017", "val2017", "test2017", "annotations"]
         src_paths = [f"{self.root}/{dirname}" for dirname in dirnames]
         dst_paths = [f"{self.raw_root}/{dirname}" for dirname in dirnames]
-        for src_path, dst_path in zip(src_paths, dst_paths):
-            move(src_path, dst_path)
+        move_many(src_paths, dst_paths)
 
     def _get_filepaths(self, dirnames: list[str] = ["annots", "images"]):
         super()._get_filepaths(dirnames)
@@ -240,9 +240,11 @@ class COCOKeypointsDataProvider(DataProvider):
             copy_files(src_imgs_filepaths, dst_imgs_filepaths)
 
             log.info(f"Saving {split} annotations as .yaml files in {dst_annots_path}")
-            for _, annot in tqdm(annots.items(), desc=split):
-                _id = annot["filename"].replace(".jpg", "")
-                save_yaml(annot, f"{dst_annots_path}/{_id}.yaml")
+            yaml_paths = [
+                f'{dst_annots_path}/{annot["filename"].replace(".jpg", "")}.yaml'
+                for annot in annots.values()
+            ]
+            save_yamls(list(annots.values()), yaml_paths)
 
 
 if __name__ == "__main__":
